@@ -1,3 +1,16 @@
+## Current Development
+
+We are currently working on implementing the following changes:
+
+### Dataset Integration
+- [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/)
+
+### Architectural Modifications
+- Adding a transformer block to fuse multi-view information in local volume reconstruction
+- Implementing depth loss during training
+- Visualizing the fusion process: input views vs updated radiance field & extract
+the mesh
+
 # NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction (CVPR 2022 Oral)
 
 [Project Sites](https://jetd1.github.io/NeRFusion-Web/)
@@ -6,7 +19,7 @@ Primary contact: [Xiaoshuai Zhang](https://jetd1.github.io/NeRFusion-Web/)
 
 ## Note
 
-This `dev` branch is currently **under development**. We will finish and merge this into `main` in a few days. This is a re-development of the original NeRFusion code based heavily on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon), [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for sharing their code. The model released in this repo is optimized for large-scale scenes further compared to the CVPR submission. A changelist will be provided.
+This is a re-development of the original NeRFusion code based heavily on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon), [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for sharing their code. The model released in this repo is optimized for large-scale scenes further compared to the CVPR submission. A changelist will be provided.
 
 
 ## Introduction
@@ -31,6 +44,9 @@ Please cite our paper if you are interested
 
 
 ## Installation
+
+#### Weights & Biases
+In order for logging to work, please export your WANDB_API_KEY 
 
 ### Requirements
 All the codes are tested in the following environment:
