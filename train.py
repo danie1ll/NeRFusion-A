@@ -94,11 +94,20 @@ class NeRFSystem(LightningModule):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
                   'downsample': self.hparams.downsample}
-        self.train_dataset = dataset(split=self.hparams.split, **kwargs)
+        
+        if self.hparams.dataset_name == 'google_scanned':
+            
+            self.hparams['num_source_views'] = 3
+            self.hparams['rectify_inplane_rotation'] = True
+            print(self.hparams)
+            self.train_dataset = dataset(split=self.hparams.split, args=self.hparams, **kwargs)
+            self.test_dataset = dataset(split='test', args=self.hparams, **kwargs)
+        else:
+            self.train_dataset = dataset(split=self.hparams.split, **kwargs)
+            self.test_dataset = dataset(split='test', **kwargs)
+
         self.train_dataset.batch_size = self.hparams.batch_size
         self.train_dataset.ray_sampling_strategy = self.hparams.ray_sampling_strategy
-
-        self.test_dataset = dataset(split='test', **kwargs)
 
         # define additional parameters
         self.register_buffer('directions', self.train_dataset.directions.to(self.device))
