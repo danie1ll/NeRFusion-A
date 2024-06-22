@@ -4,6 +4,9 @@ import tqdm
 
 import numpy as np
 
+# Usage: python scannet_get_bbox.py <root_dir>
+# root_dir: the root directory of a specific scene in the scannet dataset
+
 if __name__ == '__main__':
     root_dir = sys.argv[1]
     xyzs = []
