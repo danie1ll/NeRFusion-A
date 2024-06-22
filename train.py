@@ -8,6 +8,10 @@ import numpy as np
 import cv2
 from einops import rearrange
 
+# wandb
+import wandb
+from pytorch_lightning.loggers import WandbLogger
+
 # data
 from torch.utils.data import DataLoader
 from datasets import dataset_dict
@@ -249,9 +253,18 @@ if __name__ == '__main__':
                               save_top_k=-1)
     callbacks = [ckpt_cb, TQDMProgressBar(refresh_rate=1)]
 
-    logger = TensorBoardLogger(save_dir=f"logs/{hparams.dataset_name}",
-                               name=hparams.exp_name,
-                               default_hp_metric=False)
+    # Get the wandb API key
+    WANDB_API_KEY = os.getenv('WANDB_API_KEY')
+    wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
+
+    # Initialize wandb
+    #wandb.init(project="Nerfusion")
+    
+    logger = WandbLogger(
+        project="Nerfusion",
+        name=hparams.exp_name,
+        log_model=True
+    )
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
                       check_val_every_n_epoch=hparams.num_epochs,
