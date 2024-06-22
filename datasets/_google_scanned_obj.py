@@ -27,8 +27,8 @@ from .data_utils import rectify_inplane_rotation, get_nearest_pose_ids
 
 # only for training
 class GoogleScannedDataset(Dataset):
-    def __init__(self, args, mode, **kwargs):
-        self.folder_path = os.path.join(args.rootdir, 'data/google_scanned_objects/')
+    def __init__(self, args, **kwargs):
+        self.folder_path = os.path.join(args.root_dir, 'data/google_scanned_objects/')
         self.num_source_views = args.num_source_views
         self.rectify_inplane_rotation = args.rectify_inplane_rotation
         self.scene_path_list = glob.glob(os.path.join(self.folder_path, '*'))
