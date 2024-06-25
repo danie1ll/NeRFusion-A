@@ -14,11 +14,17 @@ the mesh
 ## Visualize the scene 
 
 Make sure you have the following library installed:
-conda install -c conda-forge libstdcxx-ng
+`conda install -c conda-forge libstdcxx-ng`
 
 Then execute the following command:
 
 `python show_gui.py --dataset_name scannet --root_dir data/scannet_official/scans/scene0000_00 --ckpt_path ckpts/scannet/test_scannet_8frames/epoch=29.ckpt`
+
+
+* w and s can be used to move forward and backward instead of using the mouse scroll.
+* q and e can be used to move up and down, and a and d can be used to move left and right.
+* Use right-click instead of left-click to control rotation.
+
 
 # NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction (CVPR 2022 Oral)
 
