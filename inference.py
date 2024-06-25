@@ -22,10 +22,7 @@ def load_test_dataset(hparams, device='cuda:0'):
     return directions, poses
 
 
-def forward(model, batch, directions):
-    poses = batch['pose']
-    directions = directions
-
+def forward(model, directions, poses):
     rays_o, rays_d = get_rays(directions, poses)
 
     kwargs = {'test_time': True, 'random_bg': hparams.random_bg}
@@ -48,4 +45,4 @@ if __name__ == '__main__':
 
     directions, poses = load_test_dataset(hparams)
 
-    # results = forward(model, batch, hparams)
+    results = forward(model, directions, poses)
