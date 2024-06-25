@@ -14,7 +14,7 @@ def load_test_dataset(hparams, device='cuda:0'):
     dataset = dataset_dict[hparams.dataset_name]
     kwargs = {'root_dir': hparams.root_dir, 'downsample': hparams.downsample}
 
-    test_dataset = dataset(split='test', **kwargs)
+    test_dataset = dataset(split='train', **kwargs)
 
     directions = test_dataset.directions.to(device)
     poses = test_dataset.poses.to(device)
