@@ -35,7 +35,14 @@ class OrbitCamera:
         res = rot @ res
         # translate
         res[:3, 3] -= self.center
-        return res
+        # Flip the y and z axes to correct orientation
+        flip = np.array([
+            [1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, -1, 0],
+            [0, 0, 0, 1]
+        ])
+        return flip @ res
 
     def orbit(self, dx, dy):
         rotvec_x = self.rot[:, 1] * np.radians(0.05 * dx)
