@@ -14,7 +14,7 @@ def load_test_dataset(hparams, device='cuda:0'):
     dataset = dataset_dict[hparams.dataset_name]
     kwargs = {'root_dir': hparams.root_dir, 'downsample': hparams.downsample}
 
-    test_dataset = dataset(split='train', **kwargs)
+    test_dataset = dataset(split='test', **kwargs)
 
     directions = test_dataset.directions.to(device)
     poses = test_dataset.poses.to(device)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     if not hparams.ckpt_path:
         raise ValueError('You need to provide a @ckpt_path for validation!')
 
-    model = NeRFusion2(hparams.scale)
+    model = NeRFusion2(hparams.scale).to('cuda:0')
     load_ckpt(model, hparams.ckpt_path)
     model.eval()
 
