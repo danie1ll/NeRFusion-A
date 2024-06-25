@@ -11,6 +11,15 @@ We are currently working on implementing the following changes:
 - Visualizing the fusion process: input views vs updated radiance field & extract
 the mesh
 
+## Visualize the scene 
+
+Make sure you have the following library installed:
+conda install -c conda-forge libstdcxx-ng
+
+Then execute the following command:
+
+`python show_gui.py --dataset_name scannet --root_dir data/scannet_official/scans/scene0000_00 --ckpt_path ckpts/scannet/test_scannet_8frames/epoch=29.ckpt`
+
 # NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction (CVPR 2022 Oral)
 
 [Project Sites](https://jetd1.github.io/NeRFusion-Web/)
