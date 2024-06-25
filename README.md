@@ -83,9 +83,9 @@ data
 
 If a video is all you have (no camera parameters). You should install `ffmpeg` and `colmap`. Then follow the instructions as introduced in [instant-ngp](https://github.com/NVlabs/instant-ngp/blob/master/scripts/colmap2nerf.py) to generate the `transformas.json`.
 
-## Inference using Pre-trained Network
+## Inference using Trained Network
 ```bash
-python train.py --dataset_name scannet --root_dir DIR_TO_SCANNET_SCENE0000_01 --exp_name EXP_NAME --ckpt_path PATH_TO_G_CKPT
+python inference.py --root_dir data/scans/scene0000_00/ --ckpt_path ckpts/scannet/test_scannet/epoch\=29.ckpt --dataset_name scannet
 ```
 Please find the pre-trained weights for networks [here](https://drive.google.com/file/d/1YjwO1Q2CAn7tdnwVzDgL_iEH_m7cSiHW/view?usp=sharing).
 
