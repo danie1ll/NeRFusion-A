@@ -45,4 +45,4 @@ if __name__ == '__main__':
 
     directions, poses = load_test_dataset(hparams)
 
-    results = forward(model, directions, poses)
+    results = forward(model, directions, poses[0])
