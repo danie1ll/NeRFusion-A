@@ -267,7 +267,7 @@ if __name__ == '__main__':
     )
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
-                      check_val_every_n_epoch=hparams.num_epochs,
+                      check_val_every_n_epoch=2,
                       callbacks=callbacks,
                       logger=logger,
                       enable_model_summary=False,
