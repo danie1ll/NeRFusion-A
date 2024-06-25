@@ -12,5 +12,5 @@ if __name__ == '__main__':
 
     model = NeRFusion2(hparams.scale)
     load_ckpt(model, hparams.ckpt_path)
+    model.eval()
 
-    print('Model loaded')
