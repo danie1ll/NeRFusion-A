@@ -35,14 +35,11 @@ class ScanNetDataset(BaseDataset):
         self.rays = []
         self.poses = []
 
-        if split == 'train':
-            with open(os.path.join(self.root_dir, "train.txt"), 'r') as f:
-                frames = f.read().strip().split()
-                frames = frames[:800]
-        else:
-            with open(os.path.join(self.root_dir, f"{split}.txt"), 'r') as f:
-                frames = f.read().strip().split()
-                frames = frames[:80]
+        n_samples = 800 if split == 'train' else 80
+
+        with open(os.path.join(self.root_dir, "train.txt"), 'r') as f:
+            frames = f.read().strip().split()
+            frames = frames[:n_samples]
 
         cam_bbox = np.loadtxt(os.path.join(self.root_dir, f"cam_bbox.txt"))
         sbbox_scale = (cam_bbox[1] - cam_bbox[0]).max() + 2 * SCANNET_FAR

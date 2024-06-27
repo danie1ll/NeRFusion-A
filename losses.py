@@ -19,6 +19,7 @@ class DistortionLoss(torch.autograd.Function):
     Outputs:
         loss: (N_rays)
     """
+
     @staticmethod
     def forward(ctx, ws, deltas, ts, rays_a):
         loss, ws_inclusive_scan, wts_inclusive_scan = \
@@ -30,7 +31,7 @@ class DistortionLoss(torch.autograd.Function):
     @staticmethod
     def backward(ctx, dL_dloss):
         (ws_inclusive_scan, wts_inclusive_scan,
-        ws, deltas, ts, rays_a) = ctx.saved_tensors
+         ws, deltas, ts, rays_a) = ctx.saved_tensors
         dL_dws = vren.distortion_loss_bw(dL_dloss, ws_inclusive_scan,
                                          wts_inclusive_scan,
                                          ws, deltas, ts, rays_a)
@@ -44,11 +45,15 @@ class NeRFLoss(nn.Module):
         self.lambda_opacity = lambda_opacity
         self.lambda_distortion = lambda_distortion
 
-    def forward(self, results, target, **kwargs):
-        o = results['opacity']+1e-10
+    def forward(self, results, target):
+        o = results['opacity'] + 1e-10
 
-        return dict(
-            rgb=(results['rgb']-target['rgb']) ** 2,
-            depth=(results['depth']-target['depth']) ** 2,
-            opacity=self.lambda_opacity * (-o*torch.log(o))
+        l = dict(
+            rgb=(results['rgb'] - target['rgb']) ** 2,
+            opacity=self.lambda_opacity * (-o * torch.log(o))
         )
+
+        if 'depth' in target:
+            l['depth'] = (results['depth'] - target['depth']) ** 2
+
+        return l
