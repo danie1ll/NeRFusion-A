@@ -10,4 +10,5 @@ jupyter
 scipy
 pymcubes
 trimesh
-dearpygui
+wandb
+taichi
