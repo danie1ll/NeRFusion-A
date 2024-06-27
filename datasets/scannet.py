@@ -74,4 +74,7 @@ class ScanNetDataset(BaseDataset):
         if len(self.rays)>0:
             self.rays = torch.FloatTensor(np.stack(self.rays)) # (N_images, hw, ?)
 
+        if len(self.depths) > 0:
+            self.depths = torch.FloatTensor(np.stack(self.depths))  # (N_images, hw, ?)
+
         self.poses = torch.FloatTensor(self.poses) # (N_images, 3, 4)
