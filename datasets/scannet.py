@@ -34,6 +34,7 @@ class ScanNetDataset(BaseDataset):
     def read_meta(self, split):
         self.rays = []
         self.poses = []
+        self.depths = []
 
         n_samples = 800 if split == 'train' else 80
 
@@ -61,8 +62,16 @@ class ScanNetDataset(BaseDataset):
                 img_path = os.path.join(self.root_dir, f"color/{frame}.jpg")
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 self.rays += [img]
+
+                depth_path = os.path.join(self.root_dir, f"depth/{frame}.png")
+                depth_image = read_image(depth_path, self.img_wh, unpad=self.unpad)
+                self.depths += [depth_image]
+
+                # depth_path = os.path.join(self.root_dir, f"depth/{frame}.jpg")
+                # img = read_image(img_path, self.img_wh, unpad=self.unpad)
             except: pass
 
         if len(self.rays)>0:
             self.rays = torch.FloatTensor(np.stack(self.rays)) # (N_images, hw, ?)
+
         self.poses = torch.FloatTensor(self.poses) # (N_images, 3, 4)
