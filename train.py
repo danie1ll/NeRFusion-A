@@ -299,7 +299,7 @@ if __name__ == '__main__':
                           save_poses=hparams.optimize_ext)
         torch.save(ckpt_, f'ckpts/{hparams.dataset_name}/{hparams.exp_name}/epoch={hparams.num_epochs-1}_slim.ckpt')
 
-    if not hparams.no_save_test:  # save video
+    if not hparams.no_save_test and hparams.save_video:  # we don't save videos for now
         imgs = sorted(glob.glob(os.path.join(system.val_dir, '*.png')))
         rgb_video_path = os.path.join(system.val_dir, 'rgb.mp4')
         depth_video_path = os.path.join(system.val_dir, 'depth.mp4')

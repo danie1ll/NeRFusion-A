@@ -52,7 +52,7 @@ class OrbitCamera:
     def reset(self, pose=None):
         self.rot = np.eye(3)
         self.center = np.zeros(3)
-        self.radius = 2.0
+        self.radius = 0.05
         if pose is not None:
             self.rot = pose.cpu().numpy()[:3, :3]
 
@@ -71,7 +71,7 @@ class OrbitCamera:
 
 
 class NGPGUI:
-    def __init__(self, hparams, K, img_wh, poses, radius=2.5):
+    def __init__(self, hparams, K, img_wh, poses, radius=0.5):
         self.hparams = hparams
         #rgb_act = 'None' if self.hparams.use_exposure else 'Sigmoid'
         self.model = NeRFusion2(scale=hparams.scale).cuda()
@@ -105,7 +105,7 @@ class NGPGUI:
                             'to_cpu': False, 'to_numpy': False,
                             'T_threshold': 1e-2,
                             'exposure': torch.cuda.FloatTensor([self.exposure]),
-                            'max_samples': 100,
+                            'max_samples': 1024,
                             'exp_step_factor': exp_step_factor})
 
         rgb = rearrange(results["rgb"], "(h w) c -> h w c", h=self.H)

@@ -65,4 +65,10 @@ def get_opts():
     parser.add_argument('--weight_path', type=str, default=None,
                         help='pretrained checkpoint to load (excluding optimizers, etc)')
 
+    # logging parameters
+    parser.add_argument('--save_video', type=str, default=False,
+                        help='''create video from test images and save it. 
+                        Makes no sense for random non-sequential images from ScanNet
+                        ''')
+    
     return parser.parse_args()
