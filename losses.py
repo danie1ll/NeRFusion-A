@@ -45,7 +45,10 @@ class NeRFLoss(nn.Module):
         self.lambda_distortion = lambda_distortion
 
     def forward(self, results, target, **kwargs):
+        o = results['opacity']+1e-10
+
         return dict(
             rgb=(results['rgb']-target['rgb']) ** 2,
             depth=(results['depth']-target['depth']) ** 2,
+            opacity=self.lambda_opacity * (-o*torch.log(o))
         )
