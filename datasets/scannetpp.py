@@ -112,7 +112,6 @@ class ScanNetPPDataset(BaseDataset):
             # camera-to-world matrix == transform-matrix
             # remove the last row of transform_matrix to get (3, 4) poses
             c2w = np.array(frame['transform_matrix'])[:3, :]
-            #self.poses[frame['file_path']] = c2w
 
             # add shift
             # the translation part of the c2w matrix (last column) is adjusted by subtracting
