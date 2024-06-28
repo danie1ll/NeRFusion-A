@@ -262,18 +262,15 @@ class NeRFSystem(LightningModule):
 if __name__ == '__main__':
     hparams = get_opts()
 
-    print(f'use debug: {hparams.debug}')
-    print(f'use dataset: {hparams.dataset_name}')
-    print(f'use dataset: {hparams.root_dir}')
-
     if not hparams.debug:
         wandb.init(project="Nerfusion", name=hparams.exp_name)
         
         if hparams.use_sweep:
             # Override hyperparameters with wandb sweep config
             wandb_config = wandb.config
-            for key in wandb_config:
-                setattr(hparams, key, wandb_config[key])
+            for key, value in wandb_config.items():
+                if hasattr(hparams, key):
+                    setattr(hparams, key, value)
     
     if hparams.val_only and (not hparams.ckpt_path):
         raise ValueError('You need to provide a @ckpt_path for validation!')
