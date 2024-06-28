@@ -88,20 +88,15 @@ class ScanNetPPDataset(BaseDataset):
         self.rays = []
         self.poses = []
 
-        # # read train/test split provided by Scannet++
-        # # test images are on purpose not from path of training frames, which provides additional challenge
-        # train_test_lists_path = os.path.join(self.root_dir, "./dslr/train_test_lists.json")
-        # with open(os.path.join(train_test_lists_path), 'r') as file:
-        #     train_test_lists = json.load(file)
-
         with open(self.transforms_undistorted_path, 'r') as file:
             transforms_undistorted_data = json.load(file) 
 
         if split == 'train':
-            # TODO(mschneider): Scannet Dataset only loads 800 frames for training, check if this makes difference in comparability between training
+            # TODO(mschneider): Scannet Dataset loads 800 frames for training, training might be less comparable to Scannet
+            # -> could find a scene with 800 frames if necessary
             frames = transforms_undistorted_data['frames']
         else:
-            # TODO(mschneider): Scannet Dataset only loads 80 frames for testing, check if this makes difference in comparability between training
+            # TODO(mschneider): Scannet Dataset loads 80 frames for testing, check if this makes difference in comparability between training
             frames = transforms_undistorted_data['test_frames']
 
         # calculates the scaling factor to be applied to all frames by adding the largest dimension of the bounding box and the margin
@@ -111,13 +106,7 @@ class ScanNetPPDataset(BaseDataset):
         # center is used to shift all camera positions so they are centered around the origin after normalization
         sbbox_shift = self.cam_bbox.mean(axis=0)
 
-        # TODO(mschneider): check if we need a dict instead or if order is irrelevant
-        # poses is dict of (file_path: c2w matrix)
-        # self.poses = {}
-
         # Iterate over all frames and extract the translation components
-        # TODO(mschneider): curretly we're loading all frames in transforms_undistorted_data
-        # need to adjust to just load frames in train/test split
         print(f'Loading {len(frames)} {split} images ...')
         for frame in tqdm(frames):
             # camera-to-world matrix == transform-matrix
@@ -142,7 +131,6 @@ class ScanNetPPDataset(BaseDataset):
                 # TODO(mschneider): check if we need a custom read_image to deal with Scannet++ data
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 # contains alpha-blended, unpadded, resized images in dimension ((height * width), channels)
-                # TODO(mschneider): check if we need a dict instead or if order is irrelevant
                 self.rays += [img]
             except: pass
 
