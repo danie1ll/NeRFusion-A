@@ -100,7 +100,9 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample}
+                  'downsample': self.hparams.downsample,
+                  'num_frames_train': self.hparams.num_frames_train,
+                  'num_frames_test': self.hparams.num_frames_test}
         
         if self.hparams.dataset_name == 'google_scanned':
             
@@ -259,8 +261,23 @@ class NeRFSystem(LightningModule):
 
 if __name__ == '__main__':
     hparams = get_opts()
+
+    print(f'use debug: {hparams.debug}')
+    print(f'use dataset: {hparams.dataset_name}')
+    print(f'use dataset: {hparams.root_dir}')
+
+    if not hparams.debug:
+        wandb.init(project="Nerfusion", name=hparams.exp_name)
+        
+        if hparams.use_sweep:
+            # Override hyperparameters with wandb sweep config
+            wandb_config = wandb.config
+            for key in wandb_config:
+                setattr(hparams, key, wandb_config[key])
+    
     if hparams.val_only and (not hparams.ckpt_path):
         raise ValueError('You need to provide a @ckpt_path for validation!')
+    
     system = NeRFSystem(hparams)
     ckpt_cb = ModelCheckpoint(dirpath=f'ckpts/{hparams.dataset_name}/{hparams.exp_name}',
                               filename='{epoch:d}',
@@ -270,16 +287,16 @@ if __name__ == '__main__':
                               save_top_k=-1)
     callbacks = [ckpt_cb, TQDMProgressBar(refresh_rate=1)]
 
-    # Get the wandb API key
-    WANDB_API_KEY = os.getenv('WANDB_API_KEY')
-    wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
+    if not hparams.debug:
+        # Get the wandb API key
+        WANDB_API_KEY = os.getenv('WANDB_API_KEY')
+        wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
 
-    # Initialize wandb
-    logger = WandbLogger(
-        project="Nerfusion",
-        name=hparams.exp_name,
-        log_model=True
-    )
+        # Initialize wandb logger
+        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=True)
+    else:
+        # Use TensorBoardLogger as default
+        logger = TensorBoardLogger("tb_logs", name=hparams.exp_name)
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
                       check_val_every_n_epoch=hparams.num_epochs,
@@ -299,7 +316,7 @@ if __name__ == '__main__':
                           save_poses=hparams.optimize_ext)
         torch.save(ckpt_, f'ckpts/{hparams.dataset_name}/{hparams.exp_name}/epoch={hparams.num_epochs-1}_slim.ckpt')
 
-    if not hparams.no_save_test and hparams.save_video:  # we don't save videos for now
+    if not hparams.no_save_test and hparams.save_video:
         imgs = sorted(glob.glob(os.path.join(system.val_dir, '*.png')))
         rgb_video_path = os.path.join(system.val_dir, 'rgb.mp4')
         depth_video_path = os.path.join(system.val_dir, 'depth.mp4')
@@ -311,12 +328,12 @@ if __name__ == '__main__':
                         [imageio.imread(img) for img in imgs[1::2]],
                         fps=30, macro_block_size=1)
 
-        # Log videos to wandb
-        logger.experiment.log({
-            "rgb_video": wandb.Video(rgb_video_path, fps=30, format="mp4"),
-            "depth_video": wandb.Video(depth_video_path, fps=30, format="mp4")
-        })
+        if not hparams.debug:
+            # Log videos to wandb
+            wandb.log({
+                "rgb_video": wandb.Video(rgb_video_path, fps=30, format="mp4"),
+                "depth_video": wandb.Video(depth_video_path, fps=30, format="mp4")
+            })
 
-        # Optional: remove local video files after uploading
-        # os.remove(rgb_video_path)
-        # os.remove(depth_video_path)
+    if not hparams.debug:
+        wandb.finish()

@@ -95,8 +95,8 @@ class NGPGUI:
         directions = get_ray_directions(self.cam.H, self.cam.W, self.cam.K, device='cuda')
         rays_o, rays_d = get_rays(directions, torch.cuda.FloatTensor(self.cam.pose))
 
-        # TODO: set these attributes by gui
-        if self.hparams.dataset_name in ['colmap', 'nerfpp']:
+        # TODO: set these attributes by gui?
+        if self.hparams.dataset_name in ['scannet'] and self.hparams.scale > 0.5:
             exp_step_factor = 1/256
         else: exp_step_factor = 0
 

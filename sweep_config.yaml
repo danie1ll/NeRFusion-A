@@ -1,0 +1,8 @@
+method: grid
+parameters:
+  batch_size:
+    values: [4096, 8192]
+  num_epochs:
+    values: [20, 30]
+  lr:
+    values: [0.001, 0.01]

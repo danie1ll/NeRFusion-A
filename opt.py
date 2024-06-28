@@ -6,7 +6,7 @@ def get_opts():
     # dataset parameters
     parser.add_argument('--root_dir', type=str, required=True,
                         help='root directory of dataset')
-    parser.add_argument('--dataset_name', type=str, default='nsvf',
+    parser.add_argument('--dataset_name', type=str, default='scannet',
                         choices=['nerf', 'nsvf', 'colmap', 'nerfpp', 'rtmv', 'scannet', 'google_scanned'],
                         help='which dataset to train/test')
     parser.add_argument('--split', type=str, default='train',
@@ -29,6 +29,10 @@ def get_opts():
     # training options
     parser.add_argument('--batch_size', type=int, default=8192,
                         help='number of rays in a batch')
+    parser.add_argument('--num_frames_train', type=int, default=800,
+                        help='amount of frames randomly samples from each scene sequence for training')
+    parser.add_argument('--num_frames_test', type=int, default=80,
+                        help='amount of frames randomly samples from each scene sequence for testing')
     parser.add_argument('--ray_sampling_strategy', type=str, default='all_images',
                         choices=['all_images', 'same_image'],
                         help='''
@@ -61,14 +65,22 @@ def get_opts():
     parser.add_argument('--exp_name', type=str, default='exp',
                         help='experiment name')
     parser.add_argument('--ckpt_path', type=str, default=None,
-                        help='pretrained checkpoint to load (including optimizers, etc)')
+                        help='''pretrained checkpoint to load (including optimizers, etc).
+                        Use if want to continue training''')
     parser.add_argument('--weight_path', type=str, default=None,
-                        help='pretrained checkpoint to load (excluding optimizers, etc)')
+                        help='''pretrained checkpoint to load (excluding optimizers, etc). 
+                        Use if want to run inference only''')
 
     # logging parameters
-    parser.add_argument('--save_video', type=str, default=False,
+    parser.add_argument('--save_video', action='store_true', default=False,
                         help='''create video from test images and save it. 
                         Makes no sense for random non-sequential images from ScanNet
                         ''')
     
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='if debug is enabled, wandb is not used for logging (default: False)')
+    parser.add_argument('--use_sweep', action='store_true', default=False,
+                        help='use wandb sweep agents for hyperparameter tuning (default: False)')
+    
+    # hyperparameter tuninig
     return parser.parse_args()
