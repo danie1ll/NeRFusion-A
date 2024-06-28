@@ -48,16 +48,16 @@ class ScanNetPPDataset(BaseDataset):
         # contains principal points cx and cy, where optical axis intersects image plane
         # contains skew coefficient s, which accounts for the non-orthogonality between the x and y pixel axes. Ideally 0
         # Needed to go from 3D point in camera coordinate system to 2D point in image
-        K = torch.eye(4, dtype=torch.float32)
-        K[0, 0] = fl_x
-        K[0, 1] = s
-        K[0, 2] = cx
-        K[1, 1] = fl_y
-        K[1, 2] = cy
+        self.K = torch.eye(3, dtype=torch.float32)
+        self.K[0, 0] = fl_x
+        self.K[0, 1] = s
+        self.K[0, 2] = cx
+        self.K[1, 1] = fl_y
+        self.K[1, 2] = cy
 
         H, W = h - 2 * self.unpad, w - 2 * self.unpad
         # adjusts the two principal points cx and cy to the padding
-        K[:2, 2] -= self.unpad
+        self.K[:2, 2] -= self.unpad
         self.directions = get_ray_directions(H, W, self.K)
         # adjusted image width and height
         self.img_wh = (W, H)
@@ -82,24 +82,27 @@ class ScanNetPPDataset(BaseDataset):
         # Compute the minimum and maximum values along each axis
         xyz_min = xyzs.min(axis=0)
         xyz_max = xyzs.max(axis=0)
-        self.cam_bbox = [xyz_min, xyz_max]
+        self.cam_bbox = np.array([xyz_min, xyz_max])
 
     def read_meta(self, split):
         self.rays = []
         self.poses = []
 
-        # read train/test split provided by Scannet++
-        # test images are on purpose not from path of training frames, which provides additional challenge
-        train_test_lists_path = os.path.join(self.root_dir, "./dslr/train_test_lists.json")
-        with open(os.path.join(train_test_lists_path), 'r') as file:
-            split = json.load(file)
+        # # read train/test split provided by Scannet++
+        # # test images are on purpose not from path of training frames, which provides additional challenge
+        # train_test_lists_path = os.path.join(self.root_dir, "./dslr/train_test_lists.json")
+        # with open(os.path.join(train_test_lists_path), 'r') as file:
+        #     train_test_lists = json.load(file)
+
+        with open(self.transforms_undistorted_path, 'r') as file:
+            transforms_undistorted_data = json.load(file) 
 
         if split == 'train':
             # TODO(mschneider): Scannet Dataset only loads 800 frames for training, check if this makes difference in comparability between training
-            frames = split.get['train']
+            frames = transforms_undistorted_data['frames']
         else:
             # TODO(mschneider): Scannet Dataset only loads 80 frames for testing, check if this makes difference in comparability between training
-            frames = split.get['test']
+            frames = transforms_undistorted_data['test_frames']
 
         # calculates the scaling factor to be applied to all frames by adding the largest dimension of the bounding box and the margin
         # because of 2 * SCANNET_FAR, the normalized space is slightly larger than the actual bounding box
@@ -107,19 +110,19 @@ class ScanNetPPDataset(BaseDataset):
         # mean of bounding box is equivalent to the center of the bounding box,
         # center is used to shift all camera positions so they are centered around the origin after normalization
         sbbox_shift = self.cam_bbox.mean(axis=0)
-        
-        print(f'Loading {len(frames)} {split} images ...')
-        with open(self.transforms_undistorted_path, 'r') as file:
-            transforms_undistorted_data = json.load(file) 
 
-        # poses is dict of (file_path: c2w matrix)
         # TODO(mschneider): check if we need a dict instead or if order is irrelevant
+        # poses is dict of (file_path: c2w matrix)
         # self.poses = {}
 
         # Iterate over all frames and extract the translation components
-        for frame in tqdm(transforms_undistorted_data['frames']):
+        # TODO(mschneider): curretly we're loading all frames in transforms_undistorted_data
+        # need to adjust to just load frames in train/test split
+        print(f'Loading {len(frames)} {split} images ...')
+        for frame in tqdm(frames):
             # camera-to-world matrix == transform-matrix
-            c2w = np.array(frame['transform_matrix'])
+            # remove the last row of transform_matrix to get (3, 4) poses
+            c2w = np.array(frame['transform_matrix'])[:3, :]
             #self.poses[frame['file_path']] = c2w
 
             # add shift
@@ -130,6 +133,9 @@ class ScanNetPPDataset(BaseDataset):
             c2w[1, 3] -= sbbox_shift[1]
             c2w[2, 3] -= sbbox_shift[2]
             c2w[:, 3] /= sbbox_scale
+
+            # contains transformation matrices for all frames
+            self.poses += [c2w]
 
             try:
                 img_path = os.path.join(self.root_dir, f"./dslr/undistorted_images/{frame['file_path']}")
