@@ -52,7 +52,7 @@ class OrbitCamera:
     def reset(self, pose=None):
         self.rot = np.eye(3)
         self.center = np.zeros(3)
-        self.radius = 2.0
+        self.radius = 0.05
         if pose is not None:
             self.rot = pose.cpu().numpy()[:3, :3]
 
@@ -71,7 +71,7 @@ class OrbitCamera:
 
 
 class NGPGUI:
-    def __init__(self, hparams, K, img_wh, poses, radius=2.5):
+    def __init__(self, hparams, K, img_wh, poses, radius=0.5):
         self.hparams = hparams
         #rgb_act = 'None' if self.hparams.use_exposure else 'Sigmoid'
         self.model = NeRFusion2(scale=hparams.scale).cuda()
@@ -95,8 +95,8 @@ class NGPGUI:
         directions = get_ray_directions(self.cam.H, self.cam.W, self.cam.K, device='cuda')
         rays_o, rays_d = get_rays(directions, torch.cuda.FloatTensor(self.cam.pose))
 
-        # TODO: set these attributes by gui
-        if self.hparams.dataset_name in ['colmap', 'nerfpp']:
+        # TODO: set these attributes by gui?
+        if self.hparams.dataset_name in ['scannet'] and self.hparams.scale > 0.5:
             exp_step_factor = 1/256
         else: exp_step_factor = 0
 
@@ -105,7 +105,7 @@ class NGPGUI:
                             'to_cpu': False, 'to_numpy': False,
                             'T_threshold': 1e-2,
                             'exposure': torch.cuda.FloatTensor([self.exposure]),
-                            'max_samples': 100,
+                            'max_samples': 1024,
                             'exp_step_factor': exp_step_factor})
 
         rgb = rearrange(results["rgb"], "(h w) c -> h w c", h=self.H)

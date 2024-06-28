@@ -19,6 +19,8 @@ class ScanNetDataset(BaseDataset):
         super().__init__(root_dir, split, downsample)
 
         self.unpad = 24
+        self.num_frames_train = kwargs.get('num_frames_train', 800)
+        self.num_frames_test = kwargs.get('num_frames_test', 80)
 
         self.read_intrinsics()
 
@@ -44,11 +46,11 @@ class ScanNetDataset(BaseDataset):
         if split == 'train':
             with open(os.path.join(self.root_dir, "train.txt"), 'r') as f:
                 frames = f.read().strip().split()
-                frames = frames[:800]
+                frames = frames[:self.num_frames_train]
         else:
             with open(os.path.join(self.root_dir, f"{split}.txt"), 'r') as f:
                 frames = f.read().strip().split()
-                frames = frames[:80]
+                frames = frames[:self.num_frames_test]
 
         # cam_box contains the two corner points of the rectangular prism that contains all the camera positions
         cam_bbox = np.loadtxt(os.path.join(self.root_dir, f"cam_bbox.txt"))
