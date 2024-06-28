@@ -26,6 +26,11 @@ class ScanNetDataset(BaseDataset):
             self.read_meta(split)
 
     def read_intrinsics(self):
+        # K is intrinsic matrix, which contains internal parameters of camera
+        # contains focal lengths fx and fy in terms of pixels
+        # contains principal points cx and cy, where optical axis intersects image plane
+        # contains skew coefficient s, which accounts for the non-orthogonality between the x and y pixel axes. Ideally 0
+        # Needed to go from 3D point in camera coordinate system to 2D point in image
         K = np.loadtxt(os.path.join(self.root_dir, "./intrinsic/intrinsic_color.txt"))[:3, :3]
         # Scannet depth frames are at a resolution of 640×480 and color frames at a resolution of 1296×968 pixels
         # Scannet paper does not indicate that there is any padding applied, so below unpadding is surprising
