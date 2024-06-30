@@ -1,8 +1,11 @@
 # ported from NeuralRecon (https://github.com/zju3dv/NeuralRecon)
 import torch
 import torch.nn as nn
-from attention import Attention
-from torchsparse.tensor import PointTensor
+
+from representations.grufusion.attention import Attention
+
+# from torchsparse.tensor import PointTensor
+from representations.grufusion.torchsparse_utils import PointTensor
 
 from .modules import ConvGRU
 

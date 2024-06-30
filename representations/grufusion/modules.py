@@ -3,8 +3,10 @@ import torch
 import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
-from torchsparse.tensor import PointTensor
 from torchsparse.utils import *
+
+# from torchsparse.tensor import PointTensor
+from representations.grufusion.torchsparse_utils import PointTensor
 
 from .torchsparse_utils import *
 
@@ -204,12 +206,12 @@ class ConvGRU(nn.Module):
         self.convq = SConv3d(hidden_dim + input_dim, hidden_dim, pres, vres, 3)
 
     def forward(self, h, x):
-        '''
+        """
 
         :param h: PintTensor
         :param x: PintTensor
         :return: h.F: Tensor (N, C)
-        '''
+        """
         hx = PointTensor(torch.cat([h.F, x.F], dim=1), h.C)
 
         z = torch.sigmoid(self.convz(hx).F)

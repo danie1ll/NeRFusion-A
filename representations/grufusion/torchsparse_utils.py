@@ -2,13 +2,48 @@
 Copied from:
 https://github.com/mit-han-lab/spvnas/blob/b24f50379ed888d3a0e784508a809d4e92e820c0/core/models/utils.py
 """
+from typing import Tuple, Union
+
+import numpy as np
 import torch
+import torch_scatter
+import torchsparse
 import torchsparse.nn.functional as F
-from torchsparse import PointTensor, SparseTensor
-from torchsparse.nn.utils import get_kernel_offsets
+from torchsparse import SparseTensor
+from torchsparse.nn.functional.devoxelize import calc_ti_weights
+from torchsparse.nn.utils import *
 
-__all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
+# from torchsparse.nn.utils import get_kernel_offsets
+from torchsparse.utils import *
 
+# from torchsparse.utils.tensor_cache import TensorCache
+
+__all__ = ["initial_voxelize", "point_to_voxel", "voxel_to_point", "PointTensor"]
+
+class PointTensor(SparseTensor):
+    def __init__(
+        self,
+        feats: torch.Tensor,
+        coords: torch.Tensor,
+        stride: Union[int, Tuple[int, ...]] = 1,
+    ):
+        super().__init__(feats=feats, coords=coords, stride=stride)
+        self._caches.idx_query = dict()
+        self._caches.idx_query_devox = dict()
+        self._caches.weights_devox = dict()
+
+
+def sphashquery(query, target, kernel_size=1):
+    hashmap_keys = torch.zeros(2 * target.shape[0], dtype=torch.int64, device=target.device)
+    hashmap_vals = torch.zeros(2 * target.shape[0], dtype=torch.int32, device=target.device)
+    hashmap = torchsparse.backend.GPUHashTable(hashmap_keys, hashmap_vals)
+    hashmap.insert_coords(target[:, [1, 2, 3, 0]])
+    kernel_size = make_ntuple(kernel_size, 3)
+    kernel_volume = np.prod(kernel_size)
+    kernel_size = make_tensor(kernel_size, device=target.device, dtype=torch.int32)
+    stride = make_tensor((1, 1, 1), device=target.device, dtype=torch.int32)
+    results = (hashmap.lookup_coords(query[:, [1, 2, 3, 0]], kernel_size, stride, kernel_volume) - 1)[: query.shape[0]]
+    return results
 
 # z: PointTensor
 # return: SparseTensor

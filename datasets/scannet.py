@@ -1,13 +1,13 @@
-import torch
 import json
-import numpy as np
 import os
+
+import numpy as np
+import torch
 from tqdm import tqdm
 
-from .ray_utils import get_ray_directions
-from .color_utils import read_image
-
 from .base import BaseDataset
+from .color_utils import read_image
+from .ray_utils import get_ray_directions
 
 # because of this factor, normalized frames are slightly larger than original bounding box
 # unclear why this is needed
@@ -49,16 +49,16 @@ class ScanNetDataset(BaseDataset):
         self.poses = []
 
         if split == 'train':
-            with open(os.path.join(self.root_dir, "train.txt"), 'r') as f:
+            with open(os.path.join(self.root_dir, "train.txt")) as f:
                 frames = f.read().strip().split()
                 frames = frames[:self.num_frames_train]
         else:
-            with open(os.path.join(self.root_dir, f"{split}.txt"), 'r') as f:
+            with open(os.path.join(self.root_dir, f"{split}.txt")) as f:
                 frames = f.read().strip().split()
                 frames = frames[:self.num_frames_test]
 
         # cam_box contains the two corner points of the rectangular prism that contains all the camera positions
-        cam_bbox = np.loadtxt(os.path.join(self.root_dir, f"cam_bbox.txt"))
+        cam_bbox = np.loadtxt(os.path.join(self.root_dir, "cam_bbox.txt"))
         # calculates the scaling factor to be applied to all frames by adding the largest dimension of the bounding box and the margin
         # because of 2 * SCANNET_FAR, the normalized space is slightly larger than the actual bounding box
         sbbox_scale = (cam_bbox[1] - cam_bbox[0]).max() + 2 * SCANNET_FAR

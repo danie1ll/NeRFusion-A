@@ -7,6 +7,7 @@ import imageio
 import numpy as np
 import cv2
 from einops import rearrange
+import argparse
 
 # wandb
 import wandb
@@ -20,6 +21,12 @@ from datasets.ray_utils import axisangle_to_R, get_rays
 # models
 from models.nerfusion import NeRFusion2
 from models.rendering import render, MAX_SAMPLES
+
+# gru fusion
+from representations.grufusion.neucon_network import NeuConNet
+from representations.grufusion.backbone import MnasMulti
+from representations.grufusion.gru_fusion import GRUFusion
+from utils import tocuda
 
 # optimizer, losses
 from apex.optimizers import FusedAdam
@@ -52,6 +59,13 @@ def depth2img(depth):
 
     return depth_img
 
+class Config:
+    def __init__(self, config_dict):
+        for key, value in config_dict.items():
+            if isinstance(value, dict):
+                setattr(self, key, Config(value))
+            else:
+                setattr(self, key, value)
 
 class NeRFSystem(LightningModule):
     def __init__(self, hparams):
@@ -71,10 +85,40 @@ class NeRFSystem(LightningModule):
                 p.requires_grad = False
 
         self.model = NeRFusion2(scale=self.hparams.scale)
+        
+        # comments are default values
+        cfg = {
+            "MODEL": {
+                "THRESHOLDS": [0, 0, 0],
+                "VOXEL_SIZE": 0.04,
+                "N_VOX": [96, 96, 96],  # Default: [128, 224, 192],     Train/Test: [96, 96, 96]
+                "N_LAYER": 3,
+                "TRAIN_NUM_SAMPLE": [4096, 16384, 65536],
+                "TEST_NUM_SAMPLE": [4096, 16384, 65536],
+                "PIXEL_MEAN": [103.53, 116.28, 123.675],
+                "PIXEL_STD": [1.0, 1.0, 1.0],
+                "FUSION": {"FUSION_ON": True, "FULL": True},  # Default: False,               Train/Test: 'True'
+                "BACKBONE2D": {"ARC": "fpn-mnas-1"},
+                "SPARSEREG":{"DROPOUT": False},
+            }
+        }
+
+        self.cfg_gru = Config(cfg)
+        self.pixel_mean = torch.Tensor(self.cfg_gru.MODEL.PIXEL_MEAN).view(-1, 1, 1)
+        self.pixel_std = torch.Tensor(self.cfg_gru.MODEL.PIXEL_STD).view(-1, 1, 1)
+
+        alpha = float(self.cfg_gru.MODEL.BACKBONE2D.ARC.split("-")[-1])
+        self.backbone2d = MnasMulti(alpha)
+        self.neucon_net = NeuConNet(self.cfg_gru.MODEL)
+        self.fuse_to_global = GRUFusion(cfg=self.cfg_gru.MODEL, direct_substitute=True)
 
         # Add a list to store validation images
         self.val_images = []
 
+    def normalizer(self, x):
+        """Normalizes the RGB images to the input range"""
+        return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
+    
     def forward(self, batch, split):
         if split=='train':
             poses = self.poses[batch['img_idxs']]
@@ -94,6 +138,63 @@ class NeRFSystem(LightningModule):
                   'random_bg': self.hparams.random_bg}
         if self.hparams.scale > 0.5:
             kwargs['exp_step_factor'] = 1/256
+
+        outputs = {}
+        W, H = self.train_dataset.img_wh  # (W, H) (1248, 920)
+        rays = self.train_dataset.rays # (N_images, H*W, channels) (800, 1148160, 3)
+        rgb_gt = batch["rgb"] # (batch size, channels) (8192, 3)
+
+        # Construction of (batch size, N_images, C, H, W) tensor
+        reshaped_images = rearrange(rays, "n (h w) c -> n c h w", h=H, w=W)  # torch.Size([800, 3, 920, 1248])
+        # imgs = imgs.unsqueeze(0)
+        reshaped_images = reshaped_images.unsqueeze(0)
+        reshaped_images = reshaped_images.expand(8192, -1, -1, -1, -1)
+        reshaped_images = tocuda(reshaped_images)
+        imgs = torch.unbind(reshaped_images, 0)
+
+        # image feature extraction
+        # in: images; out: feature maps
+        features = [self.backbone2d(self.normalizer(img)) for img in imgs]
+
+        print("WE ARE HERE")
+        # coarse-to-fine decoder: SparseConv and GRU Fusion.
+        # in: image feature; out: sparse coords and tsdf
+        outputs, loss_dict = self.neucon_net(features, inputs, outputs)
+
+
+        
+
+
+        # --- GRU FUSION ---
+        # channels = [96, 48, 24]
+        # if self.cfg_gru.FUSION.FUSION_ON:
+        #     self.gru_fusion = GRUFusion(self.cfg_gru, channels)
+        # for i in range(self.cfg_gru.N_LAYER):
+
+        #     if self.cfg_gru.FUSION.FUSION_ON:
+        #         up_coords, feat, tsdf_target, occ_target = self.gru_fusion(up_coords, feat, inputs, i) # def forward part
+        #         if self.cfg_gru.FUSION.FULL:
+        #             grid_mask = torch.ones_like(feat[:, 0]).bool()
+
+        #     tsdf = self.tsdf_preds[i](feat)
+        #     occ = self.occ_preds[i](feat)
+
+
+            #########################
+
+            # rgb_gt = batch["rgb"]
+            # inputs = rgb_gt
+            # imgs = torch.unbind(rgb_gt, 1)
+
+            # # image feature extraction
+            # # in: images; out: feature maps
+            # features = [self.backbone2d(self.normalizer(img)) for img in imgs]
+
+            # # coarse-to-fine decoder: SparseConv and GRU Fusion.
+            # # in: image feature; out: sparse coords and tsdf
+            # outputs, loss_dict = self.neucon_net(features, inputs, outputs)
+
+        # --- GRU FUSION ---
 
         return render(self.model, rays_o, rays_d, **kwargs)
 

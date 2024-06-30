@@ -1,7 +1,7 @@
 import cv2
-from einops import rearrange
 import imageio
 import numpy as np
+from einops import rearrange
 
 
 def srgb_to_linear(img):

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torchsparse import PointTensor, SparseTensor
+from torchsparse import SparseTensor
 from torchsparse.utils.quantize import sparse_quantize
 
 

@@ -37,3 +37,32 @@ def slim_ckpt(ckpt_path, save_poses=False):
     for k in keys_to_pop:
         ckpt['state_dict'].pop(k, None)
     return ckpt['state_dict']
+
+def apply_log_transform(tsdf):
+    sgn = torch.sign(tsdf)
+    out = torch.log(torch.abs(tsdf) + 1)
+    out = sgn * out
+    return out
+
+# convert a function into recursive style to handle nested dict/list/tuple variables
+def make_recursive_func(func):
+    def wrapper(vars):
+        if isinstance(vars, list):
+            return [wrapper(x) for x in vars]
+        elif isinstance(vars, tuple):
+            return tuple([wrapper(x) for x in vars])
+        elif isinstance(vars, dict):
+            return {k: wrapper(v) for k, v in vars.items()}
+        else:
+            return func(vars)
+
+    return wrapper
+
+@make_recursive_func
+def tocuda(vars):
+    if isinstance(vars, torch.Tensor):
+        return vars.cuda()
+    elif isinstance(vars, str):
+        return vars
+    else:
+        raise NotImplementedError(f"invalid input type {type(vars)} for tensor2numpy")
