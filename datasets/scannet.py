@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 
 from .ray_utils import get_ray_directions
-from .color_utils import read_image
+from .color_utils import read_image, read_depth
 
 from .base import BaseDataset
 
@@ -64,11 +64,9 @@ class ScanNetDataset(BaseDataset):
                 self.rays += [img]
 
                 depth_path = os.path.join(self.root_dir, f"depth/{frame}.png")
-                depth_image = read_image(depth_path, self.img_wh, unpad=self.unpad)
+                depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
                 self.depths += [depth_image]
 
-                # depth_path = os.path.join(self.root_dir, f"depth/{frame}.jpg")
-                # img = read_image(img_path, self.img_wh, unpad=self.unpad)
             except: pass
 
         if len(self.rays)>0:
