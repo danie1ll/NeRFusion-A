@@ -127,9 +127,9 @@ def save_tsdf_full(args, scene_path, cam_intr, depth_list, cam_pose_list, color_
             meshwrite(os.path.join(args.save_path, scene_path, f"mesh_layer{str(l)}.ply"), verts, faces, norms, colors)
 
             # Get point cloud from voxel volume and save to disk (can be viewed with Meshlab)
-            # print("Saving point cloud to pc.ply...")
-            # point_cloud = tsdf_vol_list[l].get_point_cloud()
-            # pcwrite(os.path.join(args.save_path, scene_path, 'pc_layer{}.ply'.format(str(l))), point_cloud)
+            print("Saving point cloud to pc.ply...")
+            point_cloud = tsdf_vol_list[l].get_point_cloud()
+            pcwrite(os.path.join(args.save_path, scene_path, f'pc_layer{str(l)}.ply'), point_cloud)
 
 
 def save_fragment_pkl(args, scene, cam_intr, depth_list, cam_pose_list):
@@ -229,7 +229,7 @@ def process_with_single_worker(args, scannet_files):
             cam_pose_all.update({id: cam_pose})
             # color_all.update({id: color_image})
 
-        save_tsdf_full(args, scene, cam_intr, depth_all, cam_pose_all, color_all, save_mesh=False)
+        save_tsdf_full(args, scene, cam_intr, depth_all, cam_pose_all, color_all, save_mesh=True)
         save_fragment_pkl(args, scene, cam_intr, depth_all, cam_pose_all)
 
 
