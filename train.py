@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 from einops import rearrange
 import argparse
+import pickle
 
 # wandb
 import wandb
@@ -59,6 +60,14 @@ def depth2img(depth):
 
     return depth_img
 
+def generate_grid(n_vox, interval):
+    with torch.no_grad():
+        # Create voxel grid
+        grid_range = [torch.arange(0, n_vox[axis], interval) for axis in range(3)]
+        grid = torch.stack(torch.meshgrid(grid_range[0], grid_range[1], grid_range[2]))  # 3 dx dy dz
+        grid = grid.unsqueeze(0).cuda().float()  # 1 3 dx dy dz
+        grid = grid.view(1, 3, -1)
+    return grid
 class Config:
     def __init__(self, config_dict):
         for key, value in config_dict.items():
@@ -120,15 +129,6 @@ class NeRFSystem(LightningModule):
         """Normalizes the RGB images to the input range"""
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
     
-    def generate_grid(n_vox, interval):
-        with torch.no_grad():
-            # Create voxel grid
-            grid_range = [torch.arange(0, n_vox[axis], interval) for axis in range(3)]
-            grid = torch.stack(torch.meshgrid(grid_range[0], grid_range[1], grid_range[2]))  # 3 dx dy dz
-            grid = grid.unsqueeze(0).cuda().float()  # 1 3 dx dy dz
-            grid = grid.view(1, 3, -1)
-        return grid
-    
     def forward(self, batch, split):
         if split=='train':
             poses = self.poses[batch['img_idxs']]
@@ -187,7 +187,32 @@ class NeRFSystem(LightningModule):
 
         # --- GRU FUSION ---
 
+        rgb_gt = batch["rgb"]
+        bs = rgb_gt.shape[0]
+        pre_feat = None
+        pre_coords = None
 
+        for i in range(self.cfg_gru.MODEL.N_LAYER):
+            interval = 2 ** (self.n_scales - i)
+            scale = self.n_scales - i
+
+            if i == 0:
+                # ----generate new coords----
+                coords = generate_grid(self.cfg_gru.MODEL.N_VOX, interval)[0]
+                up_coords = []
+                for b in range(bs):
+                    up_coords.append(torch.cat([torch.ones(1, coords.shape[-1]).to(coords.device) * b, coords]))
+                up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous()
+            else:
+                # ----upsample coords----
+                up_feat, up_coords = self.upsample(pre_feat, pre_coords, interval)
+
+            # NOTE: I know it looks ugly.... bear with me it is still in wip.
+            # with open(os.path.join("/data/scans/scene0000_00/tsdf/scene0000_00/fragments.pkl"), "rb") as f:
+            with open("/cluster/53/fitrinad/NeRFusion-A/data/scans/scene0000_00/tsdf/scene0000_00/fragments.pkl", "rb") as f:
+                frag_scene = pickle.load(f)
+
+            up_coords, feat, tsdf_target, occ_target = self.gru_fusion(up_coords, rgb_gt, frag_scene, i)
 
         return render(self.model, rays_o, rays_d, **kwargs)
 
