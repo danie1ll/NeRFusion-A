@@ -93,6 +93,10 @@ class GRUFusion(nn.Module):
         global_tsdf_target = self.target_tsdf_volume[scale].F
         global_coords_target = self.target_tsdf_volume[scale].C
 
+        print("XXXXXXXXXXXXXXXXXXX")
+        print(self.cfg.N_VOX)
+        print(self.cfg.N_LAYER)
+        print("XXXXXXXXXXXXXXXXXXX")
         dim = (torch.Tensor(self.cfg.N_VOX).cuda() // 2 ** (self.cfg.N_LAYER - scale - 1)).int()
         dim_list = dim.data.cpu().numpy().tolist()
 
@@ -229,6 +233,7 @@ class GRUFusion(nn.Module):
 
         # batch_size = len(inputs['fragment'])
         batch_size = len(inputs)
+        input_keys = inputs[0].keys()
         interval = 2 ** (self.cfg.N_LAYER - scale - 1)
 
         tsdf_target_all = None
@@ -240,7 +245,27 @@ class GRUFusion(nn.Module):
         for i in range(batch_size):
             scene = inputs[i]["scene"]  # scene name
             global_origin = inputs[i]["vol_origin"]  # origin of global volume
-            origin = inputs[i]["vol_origin_partial"]  # origin of part volume
+            # origin = inputs[i]["vol_origin_partial"]  # origin of part volume
+
+            # from https://github.com/zju3dv/NeuralRecon/blob/0fd2df30d1b2ba15937a8c1b02a28aa04c60478d/datasets/transforms.py#L271
+            # Very similar to save_fragment_pkl
+            
+            bnds = inputs[i]["vol_bnds"]
+            voxel_dim = inputs[i]["vol_dim"]
+
+            center = (
+                torch.tensor(((bnds[0, 1] + bnds[0, 0]) / 2, (bnds[1, 1] + bnds[1, 0]) / 2, -0.2)) - inputs[i]["vol_origin"]
+            ) / self.cfg.VOXEL_SIZE
+            
+            center[:2] = torch.round(center[:2] / 2**self.cfg.N_LAYER) * 2**self.cfg.N_LAYER
+            center[2] = torch.floor(center[2] / 2**self.cfg.N_LAYER) * 2**self.cfg.N_LAYER
+            origin = torch.zeros_like(center)
+            origin[:2] = center[:2] - torch.tensor(voxel_dim[:2]) // 2
+            origin[2] = center[2]
+
+            vol_origin_partial = origin * self.cfg.VOXEL_SIZE + inputs[i]["vol_origin"]
+            origin = vol_origin_partial
+            inputs[i]["vol_origin_partial"] = vol_origin_partial
 
             if scene != self.scene_name[scale] and self.scene_name[scale] is not None and self.direct_substitude:
                 outputs = self.save_mesh(scale, outputs, self.scene_name[scale])
@@ -264,7 +289,8 @@ class GRUFusion(nn.Module):
             coords_b = coords[batch_ind, 1:].long() // interval
             values = values_in[batch_ind]
 
-            if 'occ_list' in inputs.keys():
+            # if 'occ_list' in inputs.keys():
+            if 'occ_list' in input_keys:
                 # get partial gt
                 occ_target = inputs['occ_list'][self.cfg.N_LAYER - scale - 1][i]
                 tsdf_target = inputs['tsdf_list'][self.cfg.N_LAYER - scale - 1][i][occ_target]

@@ -107,6 +107,8 @@ def save_tsdf_full(args, scene_path, cam_intr, depth_list, cam_pose_list, color_
     tsdf_info = {
         "vol_origin": tsdf_vol_list[0]._vol_origin,
         "voxel_size": tsdf_vol_list[0]._voxel_size,
+        "vol_bnds": tsdf_vol_list[0]._vol_bnds,
+        "vol_dim": tsdf_vol_list[0]._vol_dim,
     }
     tsdf_path = os.path.join(args.save_path, scene_path)
     if not os.path.exists(tsdf_path):
@@ -191,6 +193,8 @@ def save_fragment_pkl(args, scene, cam_intr, depth_list, cam_pose_list):
             "image_ids": all_ids[i],
             "vol_origin": tsdf_info["vol_origin"],
             "voxel_size": tsdf_info["voxel_size"],
+            "vol_bnds": tsdf_info["vol_bnds"],
+            "vol_dim": tsdf_info["vol_dim"],
         })
 
     with open(os.path.join(args.save_path, scene, "fragments.pkl"), "wb") as f:
