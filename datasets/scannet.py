@@ -21,9 +21,9 @@ class ScanNetDataset(BaseDataset):
         self.read_intrinsics()
 
         print('KWARGS:', kwargs)
-        print('Depth being loaded:', kwargs.get('load_depth'))
+        print('Depth being loaded:', not kwargs.get('skip_depth_loading', False))
 
-        self.load_depth = kwargs.get('load_depth')
+        self.skip_depth_loading = kwargs.get('skip_depth_loading')
 
         if kwargs.get('read_meta', True):
             self.read_meta(split)
@@ -68,7 +68,7 @@ class ScanNetDataset(BaseDataset):
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 self.rays += [img]
 
-                if self.load_depth:
+                if not self.skip_depth_loading:
                     depth_path = os.path.join(self.root_dir, f"depth/{frame}.png")
                     depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
                     self.depths += [depth_image]

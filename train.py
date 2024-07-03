@@ -61,7 +61,7 @@ class NeRFSystem(LightningModule):
         self.warmup_steps = 256
         self.update_interval = 16
 
-        self.load_depth = hparams.load_depth
+        self.skip_depth_loading = hparams.skip_depth_loading
 
         self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
@@ -99,7 +99,7 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample, 'load_depth': self.load_depth}
+                  'downsample': self.hparams.downsample, 'skip_depth_loading': self.skip_depth_loading}
         
         if self.hparams.dataset_name == 'google_scanned':
             
