@@ -45,7 +45,7 @@ class NeRFLoss(nn.Module):
         self.lambda_opacity = lambda_opacity
         self.lambda_distortion = lambda_distortion
 
-        self.rgb_priority = 140
+        self.rgb_priority = 200
 
     def forward(self, results, target):
         o = results['opacity'] + 1e-10
