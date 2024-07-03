@@ -61,6 +61,8 @@ class NeRFSystem(LightningModule):
         self.warmup_steps = 256
         self.update_interval = 16
 
+        self.use_depth = hparams.use_depth
+
         self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_psnr = PeakSignalNoiseRatio(data_range=1)
@@ -97,13 +99,12 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample}
+                  'downsample': self.hparams.downsample, 'load_depth': self.hparams.load_depth}
         
         if self.hparams.dataset_name == 'google_scanned':
             
             self.hparams['num_source_views'] = 3
             self.hparams['rectify_inplane_rotation'] = True
-            print(self.hparams)
             self.train_dataset = dataset(split=self.hparams.split, args=self.hparams, **kwargs)
             self.test_dataset = dataset(split='test', args=self.hparams, **kwargs)
         else:
@@ -263,9 +264,6 @@ if __name__ == '__main__':
     WANDB_API_KEY = os.getenv('WANDB_API_KEY')
     wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
 
-    # Initialize wandb
-    #wandb.init(project="Nerfusion")
-    
     logger = WandbLogger(
         project="Nerfusion",
         name=hparams.exp_name,
