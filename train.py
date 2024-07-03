@@ -110,7 +110,8 @@ class NeRFSystem(LightningModule):
         alpha = float(self.cfg_gru.MODEL.BACKBONE2D.ARC.split("-")[-1])
         self.backbone2d = MnasMulti(alpha)
         self.neucon_net = NeuConNet(self.cfg_gru.MODEL)
-        self.fuse_to_global = GRUFusion(cfg=self.cfg_gru.MODEL, direct_substitute=True)
+        self.gru_fusion = GRUFusion(cfg=self.cfg_gru.MODEL, direct_substitute=True)
+        self.n_scales = len(self.cfg_gru.MODEL.THRESHOLDS) - 1
 
         # Add a list to store validation images
         self.val_images = []
@@ -118,6 +119,15 @@ class NeRFSystem(LightningModule):
     def normalizer(self, x):
         """Normalizes the RGB images to the input range"""
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
+    
+    def generate_grid(n_vox, interval):
+        with torch.no_grad():
+            # Create voxel grid
+            grid_range = [torch.arange(0, n_vox[axis], interval) for axis in range(3)]
+            grid = torch.stack(torch.meshgrid(grid_range[0], grid_range[1], grid_range[2]))  # 3 dx dy dz
+            grid = grid.unsqueeze(0).cuda().float()  # 1 3 dx dy dz
+            grid = grid.view(1, 3, -1)
+        return grid
     
     def forward(self, batch, split):
         if split=='train':
@@ -139,33 +149,29 @@ class NeRFSystem(LightningModule):
         if self.hparams.scale > 0.5:
             kwargs['exp_step_factor'] = 1/256
 
-        outputs = {}
-        W, H = self.train_dataset.img_wh  # (W, H) (1248, 920)
-        rays = self.train_dataset.rays # (N_images, H*W, channels) (800, 1148160, 3)
-        rgb_gt = batch["rgb"] # (batch size, channels) (8192, 3)
+        # TODO: Implement GRU Fusion
 
-        # Construction of (batch size, N_images, C, H, W) tensor
-        reshaped_images = rearrange(rays, "n (h w) c -> n c h w", h=H, w=W)  # torch.Size([800, 3, 920, 1248])
-        # imgs = imgs.unsqueeze(0)
-        reshaped_images = reshaped_images.unsqueeze(0)
-        reshaped_images = reshaped_images.expand(8192, -1, -1, -1, -1)
-        reshaped_images = tocuda(reshaped_images)
-        imgs = torch.unbind(reshaped_images, 0)
+        # W, H = self.train_dataset.img_wh  # (W, H) (1248, 920)
+        # rays = self.train_dataset.rays # (N_images, H*W, channels) (800, 1148160, 3)
+        # rgb_gt = batch["rgb"] # (batch size, channels) (8192, 3)
+
+        # reshaped_images = rearrange(rays, "n (h w) c -> n c h w", h=H, w=W)  # torch.Size([800, 3, 920, 1248])
+        # batch_size = rgb_gt.shape[0]
+        # imgs = reshaped_images.unsqueeze(0)
+        # imgs = imgs.expand(batch_size, -1, -1, -1, -1)
+        # reshaped_images = tocuda(reshaped_images)
+        # imgs = torch.unbind(reshaped_images, 0)
 
         # image feature extraction
         # in: images; out: feature maps
-        features = [self.backbone2d(self.normalizer(img)) for img in imgs]
+        # features = [self.backbone2d(self.normalizer(img)) for img in imgs]
 
-        print("WE ARE HERE")
         # coarse-to-fine decoder: SparseConv and GRU Fusion.
         # in: image feature; out: sparse coords and tsdf
-        outputs, loss_dict = self.neucon_net(features, inputs, outputs)
-
-
-        
-
+        # outputs, loss_dict = self.neucon_net(features, inputs, outputs)
 
         # --- GRU FUSION ---
+
         # channels = [96, 48, 24]
         # if self.cfg_gru.FUSION.FUSION_ON:
         #     self.gru_fusion = GRUFusion(self.cfg_gru, channels)
@@ -179,22 +185,9 @@ class NeRFSystem(LightningModule):
         #     tsdf = self.tsdf_preds[i](feat)
         #     occ = self.occ_preds[i](feat)
 
-
-            #########################
-
-            # rgb_gt = batch["rgb"]
-            # inputs = rgb_gt
-            # imgs = torch.unbind(rgb_gt, 1)
-
-            # # image feature extraction
-            # # in: images; out: feature maps
-            # features = [self.backbone2d(self.normalizer(img)) for img in imgs]
-
-            # # coarse-to-fine decoder: SparseConv and GRU Fusion.
-            # # in: image feature; out: sparse coords and tsdf
-            # outputs, loss_dict = self.neucon_net(features, inputs, outputs)
-
         # --- GRU FUSION ---
+
+
 
         return render(self.model, rays_o, rays_d, **kwargs)
 
