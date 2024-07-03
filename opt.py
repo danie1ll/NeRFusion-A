@@ -65,6 +65,6 @@ def get_opts():
     parser.add_argument('--weight_path', type=str, default=None,
                         help='pretrained checkpoint to load (excluding optimizers, etc)')
 
-    parser.add_argument('--load-depth', type=bool, default=True, help='weather to attempt using depth for training')
+    parser.add_argument('--load_depth', type=bool, default=True, help='weather to attempt using depth for training')
 
     return parser.parse_args()
