@@ -3,9 +3,8 @@
 
 import numpy as np
 import torch
-
 from numba import njit, prange
-# from skimage import measure
+from skimage import measure
 
 
 class TSDFVolume:

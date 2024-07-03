@@ -1,3 +1,4 @@
 pycuda
 ray
 numba
+scikit-image
