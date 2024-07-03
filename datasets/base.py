@@ -36,7 +36,6 @@ class BaseDataset(Dataset):
             depths = self.depths[img_idxs, pix_idxs]
 
             if len(depths) > 0:
-                print('Depth not loaded')
                 sample['depths'] = depths
 
             if self.rays.shape[-1] == 4: # HDR-NeRF data
