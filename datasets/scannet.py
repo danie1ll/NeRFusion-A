@@ -24,7 +24,6 @@ class ScanNetDataset(BaseDataset):
 
         self.read_intrinsics()
 
-        print('KWARGS:', kwargs)
         print('Depth being loaded:', not kwargs.get('skip_depth_loading', False))
 
         self.skip_depth_loading = kwargs.get('skip_depth_loading')
