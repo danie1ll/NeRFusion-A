@@ -71,7 +71,8 @@ def get_opts():
                         help='''pretrained checkpoint to load (excluding optimizers, etc). 
                         Use if want to run inference only''')
 
-    # logging parameters
+    parser.add_argument('--skip_depth_loading', action='store_true', default=False, help='weather to attempt using depth for training')
+      # logging parameters
     parser.add_argument('--save_video', action='store_true', default=False,
                         help='''create video from test images and save it. 
                         Makes no sense for random non-sequential images from ScanNet
@@ -81,6 +82,5 @@ def get_opts():
                         help='if debug is enabled, wandb is not used for logging (default: False)')
     parser.add_argument('--use_sweep', action='store_true', default=False,
                         help='use wandb sweep agents for hyperparameter tuning (default: False)')
-    
-    # hyperparameter tuninig
+
     return parser.parse_args()

@@ -61,6 +61,8 @@ class NeRFSystem(LightningModule):
         self.warmup_steps = 256
         self.update_interval = 16
 
+        self.skip_depth_loading = hparams.skip_depth_loading
+
         self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_psnr = PeakSignalNoiseRatio(data_range=1)
@@ -99,16 +101,18 @@ class NeRFSystem(LightningModule):
 
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
-        kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample,
-                  'num_frames_train': self.hparams.num_frames_train,
-                  'num_frames_test': self.hparams.num_frames_test}
+        kwargs = {
+          'root_dir': self.hparams.root_dir,
+          'downsample': self.hparams.downsample,
+          'num_frames_train': self.hparams.num_frames_train,
+          'num_frames_test': self.hparams.num_frames_test,
+          'skip_depth_loading': self.skip_depth_loading
+        }
         
         if self.hparams.dataset_name == 'google_scanned':
             
             self.hparams['num_source_views'] = 3
             self.hparams['rectify_inplane_rotation'] = True
-            print(self.hparams)
             self.train_dataset = dataset(split=self.hparams.split, args=self.hparams, **kwargs)
             self.test_dataset = dataset(split='test', args=self.hparams, **kwargs)
         else:
@@ -179,6 +183,12 @@ class NeRFSystem(LightningModule):
             self.train_psnr(results['rgb'], batch['rgb'])
         self.log('lr', self.net_opt.param_groups[0]['lr'])
         self.log('train/loss', loss)
+
+        if 'depth' in loss_d:
+            self.log('train/loss/depth', loss_d['depth'].mean(), True)
+
+        self.log('train/loss/rgb', loss_d['rgb'].mean(), True)
+
         # ray marching samples per ray (occupied space on the ray)
         self.log('train/rm_s', results['rm_samples']/len(batch['rgb']), True)
         # volume rendering samples per ray (stops marching when transmittance drops below 1e-4)

@@ -26,11 +26,19 @@ class BaseDataset(Dataset):
                 img_idxs = np.random.choice(len(self.poses), self.batch_size)
             elif self.ray_sampling_strategy == 'same_image': # randomly select ONE image
                 img_idxs = np.random.choice(len(self.poses), 1)[0]
+
             # randomly select pixels
             pix_idxs = np.random.choice(self.img_wh[0]*self.img_wh[1], self.batch_size)
             rays = self.rays[img_idxs, pix_idxs]
-            sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs,
-                      'rgb': rays[:, :3]}
+
+            sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs, 'rgb': rays[:, :3]}
+
+            if not self.skip_depth_loading:
+                depths = self.depths[img_idxs, pix_idxs]
+
+                if len(depths) > 0:
+                    sample['depth'] = depths
+
             if self.rays.shape[-1] == 4: # HDR-NeRF data
                 sample['exposure'] = rays[:, 3:]
         else:

@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 
 from .ray_utils import get_ray_directions
-from .color_utils import read_image
+from .color_utils import read_image, read_depth
 
 from .base import BaseDataset
 
@@ -23,6 +23,10 @@ class ScanNetDataset(BaseDataset):
         self.num_frames_test = kwargs.get('num_frames_test', 80)
 
         self.read_intrinsics()
+
+        print('Depth being loaded:', not kwargs.get('skip_depth_loading', False))
+
+        self.skip_depth_loading = kwargs.get('skip_depth_loading')
 
         if kwargs.get('read_meta', True):
             self.read_meta(split)
@@ -47,16 +51,14 @@ class ScanNetDataset(BaseDataset):
     def read_meta(self, split):
         self.rays = []
         self.poses = []
+        self.depths = []
 
-        if split == 'train':
-            with open(os.path.join(self.root_dir, "train.txt"), 'r') as f:
-                frames = f.read().strip().split()
-                frames = frames[:self.num_frames_train]
-        else:
-            with open(os.path.join(self.root_dir, f"{split}.txt"), 'r') as f:
-                frames = f.read().strip().split()
-                frames = frames[:self.num_frames_test]
+        n_samples = self.num_frames_train if split == 'train' else self.num_frames_test
 
+        with open(os.path.join(self.root_dir, f"{split}.txt"), 'r') as f:
+            frames = f.read().strip().split()
+            frames = frames[:n_samples]
+       
         # cam_box contains the two corner points of the rectangular prism that contains all the camera positions
         cam_bbox = np.loadtxt(os.path.join(self.root_dir, f"cam_bbox.txt"))
         # calculates the scaling factor to be applied to all frames by adding the largest dimension of the bounding box and the margin
@@ -89,10 +91,20 @@ class ScanNetDataset(BaseDataset):
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 # contains alpha-blended, unpadded, resized images in dimension ((height * width), channels)
                 self.rays += [img]
+
+                if not self.skip_depth_loading:
+                    depth_path = os.path.join(self.root_dir, f"depth/{frame}.png")
+                    depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
+                    self.depths += [depth_image]
+
             except: pass
 
-        if len(self.rays)>0:
+        if len(self.rays) > 0:
             # ?: depends on whether alpha-values for transparency are given.
             # Either (N_images, h*w, channels) or (N_images, h*w, channels, alpha)
-            self.rays = torch.FloatTensor(np.stack(self.rays)) # (N_images, h*w, ?)
+            self.rays = torch.FloatTensor(np.stack(self.rays)) # (N_images, hw, ?)
+
+        if len(self.depths) > 0:
+            self.depths = torch.FloatTensor(np.stack(self.depths))  # (N_images, hw, ?)
+
         self.poses = torch.FloatTensor(self.poses) # (N_images, 3, 4)
