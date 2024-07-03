@@ -99,7 +99,7 @@ class NeRFSystem(LightningModule):
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
         kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample, 'load_depth': self.hparams.load_depth}
+                  'downsample': self.hparams.downsample, 'load_depth': self.load_depth}
         
         if self.hparams.dataset_name == 'google_scanned':
             

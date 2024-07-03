@@ -20,6 +20,7 @@ class ScanNetDataset(BaseDataset):
 
         self.read_intrinsics()
 
+        print('KWARGS:', kwargs)
         print('Depth being loaded:', kwargs.get('load_depth'))
 
         self.load_depth = kwargs.get('load_depth')
