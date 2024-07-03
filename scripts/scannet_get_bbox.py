@@ -11,7 +11,9 @@ if __name__ == '__main__':
     root_dir = sys.argv[1]
     xyzs = []
     for pose_file in tqdm.tqdm(os.listdir(os.path.join(root_dir, 'pose'))):
+        # 4x4 transform-matrix to represent position and orientation of camera
         pose = np.loadtxt(os.path.join(root_dir, f'pose/{pose_file}'))
+        # extract the 3x1 translation vector, which is equivalent to the position of the camera
         xyz = pose[:3, -1]
         xyzs.append(xyz)
 

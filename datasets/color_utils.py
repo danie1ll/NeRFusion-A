@@ -28,16 +28,21 @@ def read_image(img_path, img_wh, blend_a=True, unpad=0):
     img = imageio.imread(img_path).astype(np.float32)/255.0
 
     # img[..., :3] = srgb_to_linear(img[..., :3])
+    # performs alpha-blending, which combines foreground and background image
+    # color = alpha * color_foreground + (1 - alpha) * color_background
+    # check if fourth dimension (defines transparancy) exists
     if img.shape[2] == 4: # blend A to RGB
         if blend_a:
             img = img[..., :3] * img[..., -1:] + (1-img[..., -1:])
         else:
             img = img[..., :3] * img[..., -1:]
-
+        
     if unpad > 0:
         img = img[unpad:-unpad, unpad:-unpad]
 
     img = cv2.resize(img, img_wh)
+    # flatten spatial dimensions to single dimension
+    # (height, width, channels) -> ((height * width), channels)
     img = rearrange(img, 'h w c -> (h w) c')
 
     return img
