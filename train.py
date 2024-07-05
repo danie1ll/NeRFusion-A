@@ -61,6 +61,8 @@ class NeRFSystem(LightningModule):
         self.warmup_steps = 256
         self.update_interval = 16
 
+        self.skip_depth_loading = hparams.skip_depth_loading
+
         self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_psnr = PeakSignalNoiseRatio(data_range=1)
@@ -71,6 +73,9 @@ class NeRFSystem(LightningModule):
                 p.requires_grad = False
 
         self.model = NeRFusion2(scale=self.hparams.scale)
+
+        # Add a list to store validation images
+        self.val_images = []
 
     def forward(self, batch, split):
         if split=='train':
@@ -96,14 +101,18 @@ class NeRFSystem(LightningModule):
 
     def setup(self, stage):
         dataset = dataset_dict[self.hparams.dataset_name]
-        kwargs = {'root_dir': self.hparams.root_dir,
-                  'downsample': self.hparams.downsample}
+        kwargs = {
+          'root_dir': self.hparams.root_dir,
+          'downsample': self.hparams.downsample,
+          'num_frames_train': self.hparams.num_frames_train,
+          'num_frames_test': self.hparams.num_frames_test,
+          'skip_depth_loading': self.skip_depth_loading
+        }
         
         if self.hparams.dataset_name == 'google_scanned':
             
             self.hparams['num_source_views'] = 3
             self.hparams['rectify_inplane_rotation'] = True
-            print(self.hparams)
             self.train_dataset = dataset(split=self.hparams.split, args=self.hparams, **kwargs)
             self.test_dataset = dataset(split='test', args=self.hparams, **kwargs)
         else:
@@ -174,6 +183,12 @@ class NeRFSystem(LightningModule):
             self.train_psnr(results['rgb'], batch['rgb'])
         self.log('lr', self.net_opt.param_groups[0]['lr'])
         self.log('train/loss', loss)
+
+        if 'depth' in loss_d:
+            self.log('train/loss/depth', loss_d['depth'].mean(), True)
+
+        self.log('train/loss/rgb', loss_d['rgb'].mean(), True)
+
         # ray marching samples per ray (occupied space on the ray)
         self.log('train/rm_s', results['rm_samples']/len(batch['rgb']), True)
         # volume rendering samples per ray (stops marching when transmittance drops below 1e-4)
@@ -214,6 +229,10 @@ class NeRFSystem(LightningModule):
             idx = batch['img_idxs']
             rgb_pred = rearrange(results['rgb'].cpu().numpy(), '(h w) c -> h w c', h=h)
             rgb_pred = (rgb_pred*255).astype(np.uint8)
+            
+            # Save the image for wandb logging
+            self.val_images.append((idx, rgb_pred))
+            
             imageio.imsave(os.path.join(self.val_dir, f'{idx:03d}.png'), rgb_pred)
 
         return logs
@@ -231,6 +250,17 @@ class NeRFSystem(LightningModule):
             lpipss = torch.stack([x['lpips'] for x in outputs])
             mean_lpips = all_gather_ddp_if_available(lpipss).mean()
             self.log('test/lpips_vgg', mean_lpips)
+        
+        # Log images to wandb
+        if self.logger.__class__.__name__ == 'WandbLogger':
+            wandb_logger = self.logger.experiment
+            test_images = []
+            for idx, img in self.val_images:
+                test_images.append(wandb.Image(img, caption=f"Test image {idx}"))
+            wandb_logger.log({"test_images": test_images})
+        
+        # Clear the validation images list
+        self.val_images.clear()
 
     def get_progress_bar_dict(self):
         # don't show the version number
@@ -241,10 +271,21 @@ class NeRFSystem(LightningModule):
 
 if __name__ == '__main__':
     hparams = get_opts()
+
+    if not hparams.debug:
+        wandb.init(project="Nerfusion", name=hparams.exp_name)
+        
+        if hparams.use_sweep:
+            # Override hyperparameters with wandb sweep config
+            wandb_config = wandb.config
+            for key, value in wandb_config.items():
+                if hasattr(hparams, key):
+                    setattr(hparams, key, value)
+    
     if hparams.val_only and (not hparams.ckpt_path):
         raise ValueError('You need to provide a @ckpt_path for validation!')
+    
     system = NeRFSystem(hparams)
-
     ckpt_cb = ModelCheckpoint(dirpath=f'ckpts/{hparams.dataset_name}/{hparams.exp_name}',
                               filename='{epoch:d}',
                               save_weights_only=False,
@@ -253,18 +294,16 @@ if __name__ == '__main__':
                               save_top_k=-1)
     callbacks = [ckpt_cb, TQDMProgressBar(refresh_rate=1)]
 
-    # Get the wandb API key
-    WANDB_API_KEY = os.getenv('WANDB_API_KEY')
-    wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
+    if not hparams.debug:
+        # Get the wandb API key
+        WANDB_API_KEY = os.getenv('WANDB_API_KEY')
+        wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
 
-    # Initialize wandb
-    #wandb.init(project="Nerfusion")
-    
-    logger = WandbLogger(
-        project="Nerfusion",
-        name=hparams.exp_name,
-        log_model=True
-    )
+        # Initialize wandb logger
+        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=True)
+    else:
+        # Use TensorBoardLogger as default
+        logger = TensorBoardLogger("tb_logs", name=hparams.exp_name)
 
     trainer = Trainer(max_epochs=hparams.num_epochs,
                       check_val_every_n_epoch=2,
@@ -273,26 +312,35 @@ if __name__ == '__main__':
                       enable_model_summary=False,
                       accelerator='gpu',
                       devices=hparams.num_gpus,
-                      strategy=DDPPlugin(find_unused_parameters=False)
-                               if hparams.num_gpus>1 else None,
+                      strategy=DDPPlugin(find_unused_parameters=False) if hparams.num_gpus>1 else None,
                       num_sanity_val_steps=-1 if hparams.val_only else 0,
                       precision=16)
 
     trainer.fit(system, ckpt_path=hparams.ckpt_path)
 
-    if not hparams.val_only: # save slimmed ckpt for the last epoch
-        ckpt_ = \
-            slim_ckpt(f'ckpts/{hparams.dataset_name}/{hparams.exp_name}/epoch={hparams.num_epochs-1}.ckpt',
-                      save_poses=hparams.optimize_ext)
+    if not hparams.val_only:  # save slimmed ckpt for the last epoch
+        ckpt_ = slim_ckpt(f'ckpts/{hparams.dataset_name}/{hparams.exp_name}/epoch={hparams.num_epochs-1}.ckpt',
+                          save_poses=hparams.optimize_ext)
         torch.save(ckpt_, f'ckpts/{hparams.dataset_name}/{hparams.exp_name}/epoch={hparams.num_epochs-1}_slim.ckpt')
 
-    if (not hparams.no_save_test) and \
-       hparams.dataset_name=='nsvf' and \
-       'Synthetic' in hparams.root_dir: # save video
+    if not hparams.no_save_test and hparams.save_video:
         imgs = sorted(glob.glob(os.path.join(system.val_dir, '*.png')))
-        imageio.mimsave(os.path.join(system.val_dir, 'rgb.mp4'),
+        rgb_video_path = os.path.join(system.val_dir, 'rgb.mp4')
+        depth_video_path = os.path.join(system.val_dir, 'depth.mp4')
+
+        imageio.mimsave(rgb_video_path,
                         [imageio.imread(img) for img in imgs[::2]],
                         fps=30, macro_block_size=1)
-        imageio.mimsave(os.path.join(system.val_dir, 'depth.mp4'),
+        imageio.mimsave(depth_video_path,
                         [imageio.imread(img) for img in imgs[1::2]],
                         fps=30, macro_block_size=1)
+
+        if not hparams.debug:
+            # Log videos to wandb
+            wandb.log({
+                "rgb_video": wandb.Video(rgb_video_path, fps=30, format="mp4"),
+                "depth_video": wandb.Video(depth_video_path, fps=30, format="mp4")
+            })
+
+    if not hparams.debug:
+        wandb.finish()

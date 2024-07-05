@@ -4,8 +4,11 @@ __pycache__/
 *$py.class
 
 data/*
+artifacts/*
 
 wandb/*
+
+imgui.ini
 
 # C extensions
 *.so
@@ -135,5 +138,6 @@ dmypy.json
 
 .idea
 /logs/
+/tb_logs/
 /results/
 /ckpts/
