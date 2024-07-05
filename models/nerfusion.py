@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 import tinycudann as tcnn
+
+from models.fusion.neuralrecon import NeuralRecon
 from .custom_functions import TruncExp
 import vren
 from einops import rearrange
@@ -8,7 +10,7 @@ from kornia.utils.grid import create_meshgrid3d
 from .rendering import NEAR_DISTANCE
 
 class NeRFusion2(nn.Module):
-    def __init__(self, scale, grid_size=128, global_representation=None):
+    def __init__(self, scale, grid_size=128, global_representation=None, cfg=None):
         super().__init__()
 
         # scene bounding box
@@ -73,6 +75,8 @@ class NeRFusion2(nn.Module):
                     "degree": 4,
                 },
             )
+
+        self.global_fusion = NeuralRecon(cfg)
 
         self.rgb_net = \
             tcnn.Network(
