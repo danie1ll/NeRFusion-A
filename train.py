@@ -44,6 +44,7 @@ from utils import slim_ckpt, load_ckpt
 
 import warnings; warnings.filterwarnings("ignore")
 
+torch.set_float32_matmul_precision('high')  
 
 def depth2img(depth):
     depth = (depth-depth.min())/(depth.max()-depth.min())

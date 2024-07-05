@@ -24,6 +24,8 @@ class ScanNetPPDataset(BaseDataset):
         # self.cam_box contains the two corner points of the rectangular prism that contains all the camera positions
         self.get_cam_bbox()
 
+        self.skip_depth_loading = kwargs.get('skip_depth_loading')
+
         if kwargs.get('read_meta', True):
             self.read_meta(split)
 
