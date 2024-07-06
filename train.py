@@ -301,7 +301,7 @@ if __name__ == '__main__':
         wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
 
         # Initialize wandb logger
-        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=True)
+        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=False)
     else:
         # Use TensorBoardLogger as default
         logger = TensorBoardLogger("tb_logs", name=hparams.exp_name)
