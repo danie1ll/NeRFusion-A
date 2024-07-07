@@ -40,7 +40,7 @@ class ScanNetDataset(BaseDataset):
         K = np.loadtxt(os.path.join(self.root_dir, "./intrinsic/intrinsic_color.txt"))[:3, :3]
         # Scannet depth frames are at a resolution of 640×480 and color frames at a resolution of 1296×968 pixels
         # Scannet paper does not indicate that there is any padding applied, so below unpadding is surprising
-        H, W = 968 - 2 * self.unpad, 1296 - 2 * self.unpad
+        H, W = 480 - 2 * self.unpad, 640 - 2 * self.unpad
         # adjusts the two principal points cx and cy to the padding
         K[:2, 2] -= self.unpad
         self.K = torch.FloatTensor(K)
