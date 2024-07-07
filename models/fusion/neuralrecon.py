@@ -23,13 +23,17 @@ class NeuralRecon(nn.Module):
 
         # networks
         self.backbone2d = MnasMulti(alpha)
+        # (mschneider): output of last layer of neucon_net should be passed to NeRF together with xyz location and viewing direction
         self.neucon_net = NeuConNet(cfg.MODEL)
         # for fusing to global volume
+        # (mschneider): this GRUFusion layer is not used during training
         self.fuse_to_global = GRUFusion(cfg.MODEL, direct_substitute=True)
+
 
     def normalizer(self, x):
         """ Normalizes the RGB images to the input range"""
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
+
 
     def forward(self, inputs, save_mesh=False):
         '''

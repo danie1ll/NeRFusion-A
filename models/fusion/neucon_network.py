@@ -12,6 +12,7 @@ from ops.back_project import back_project
 from ops.generate_grids import generate_grid
 
 
+# (mschneider): this is the MLP of NeuralRecon paper!
 class NeuConNet(nn.Module):
     '''
     Coarse-to-fine network.
@@ -32,6 +33,7 @@ class NeuConNet(nn.Module):
         # sparse conv
         self.sp_convs = nn.ModuleList()
         # MLPs that predict tsdf and occupancy.
+        # (mschneider): REPLACE WITH NeRF??
         self.tsdf_preds = nn.ModuleList()
         self.occ_preds = nn.ModuleList()
         for i in range(len(cfg.THRESHOLDS)):
