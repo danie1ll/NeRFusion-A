@@ -64,7 +64,7 @@ class NeRFSystem(LightningModule):
 
         self.skip_depth_loading = hparams.skip_depth_loading
 
-        self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
+        self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w, depth_loss_w=hparams.depth_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_ssim = StructuralSimilarityIndexMeasure(data_range=1)
