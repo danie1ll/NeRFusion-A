@@ -190,6 +190,8 @@ class NeRFSystem(LightningModule):
 
         self.log('train/rgb_loss', loss_d['rgb'].mean(), True)
 
+        self.log('train/distortion_loss', loss_d['distortion'].mean(), True)
+
         # ray marching samples per ray (occupied space on the ray)
         self.log('train/rm_s', results['rm_samples']/len(batch['rgb']), True)
         # volume rendering samples per ray (stops marching when transmittance drops below 1e-4)
