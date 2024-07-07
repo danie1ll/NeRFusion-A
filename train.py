@@ -186,9 +186,9 @@ class NeRFSystem(LightningModule):
         self.log('train/loss', loss)
 
         if 'depth' in loss_d:
-            self.log('train/loss/depth', loss_d['depth'].mean(), True)
+            self.log('train/depth_loss', loss_d['depth'].mean(), True)
 
-        self.log('train/loss/rgb', loss_d['rgb'].mean(), True)
+        self.log('train/rgb_loss', loss_d['rgb'].mean(), True)
 
         # ray marching samples per ray (occupied space on the ray)
         self.log('train/rm_s', results['rm_samples']/len(batch['rgb']), True)
