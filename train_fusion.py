@@ -10,11 +10,12 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from loguru import logger
 
-from utils import tensor2float, save_scalars, DictAverageMeter, SaveScene, make_nograd_func
-from datasets import transforms, find_dataset_def
-from models import NeuralRecon
-from config import cfg, update_config
 from datasets.fusion.sampler import DistributedSampler
+from datasets.fusion.scannet import ScanNetDataset
+from utils_fusion import tensor2float, save_scalars, DictAverageMeter, SaveScene, make_nograd_func
+from datasets.fusion import transforms, find_dataset_def
+from models.fusion.neuralrecon import NeuralRecon
+from config import cfg, update_config
 from ops.comm import *
 
 
@@ -113,9 +114,9 @@ transform += [transforms.ResizeImage((640, 480)),
 transforms = transforms.Compose(transform)
 
 # dataset, dataloader
-MVSDataset = find_dataset_def(cfg.DATASET)
-train_dataset = MVSDataset(cfg.TRAIN.PATH, "train", transforms, cfg.TRAIN.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
-test_dataset = MVSDataset(cfg.TEST.PATH, "test", transforms, cfg.TEST.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
+# MVSDataset = find_dataset_def(cfg.DATASET)
+train_dataset = ScanNetDataset(cfg.TRAIN.PATH, "train", transforms, cfg.TRAIN.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
+test_dataset = ScanNetDataset(cfg.TEST.PATH, "test", transforms, cfg.TEST.N_VIEWS, len(cfg.MODEL.THRESHOLDS) - 1)
 
 if cfg.DISTRIBUTED:
     train_sampler = DistributedSampler(train_dataset, shuffle=False)
