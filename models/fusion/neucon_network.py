@@ -126,6 +126,7 @@ class NeuConNet(nn.Module):
                 up_feat, up_coords = self.upsample(pre_feat, pre_coords, interval)
 
             # ----back project----
+            # (mschneider): transforms the 2D features (from images) into a 3D representation
             feats = torch.stack([feat[scale] for feat in features])
             KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()
             volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats,
@@ -166,6 +167,9 @@ class NeuConNet(nn.Module):
 
             tsdf = self.tsdf_preds[i](feat)
             occ = self.occ_preds[i](feat)
+
+            # TODO(mschneider): pass GRU features of last scaling pass to NeRF
+            print(feat.shape)
 
             # -------compute loss-------
             if tsdf_target is not None:
@@ -209,6 +213,7 @@ class NeuConNet(nn.Module):
             if i == self.cfg.N_LAYER - 1:
                 outputs['coords'] = pre_coords
                 outputs['tsdf'] = pre_tsdf
+                outputs['feat'] = feat
 
         return outputs, loss_dict
 

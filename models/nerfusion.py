@@ -76,8 +76,6 @@ class NeRFusion2(nn.Module):
                 },
             )
 
-        self.global_fusion = NeuralRecon(cfg)
-
         self.rgb_net = \
             tcnn.Network(
                 n_input_dims=32, n_output_dims=3,
