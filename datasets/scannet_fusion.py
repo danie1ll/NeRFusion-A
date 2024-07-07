@@ -173,8 +173,9 @@ class ScanNetFusion(Dataset):
             return 1000
         return len(self.poses)
 
+
     def __getitem__(self, idx):
-        # we're returning a single image/fram of a scene
+        # we're returning a single image/frame of a scene
         # we've already loaded all images/frames into the array and are just returning the image corresponding 
         # to a specific index
         if self.split.startswith('train'):
@@ -208,6 +209,7 @@ class ScanNetFusion(Dataset):
                     sample['exposure'] = rays[0, 3] # same exposure for all rays
 
         return sample
+
 
     def __getitem__(self, idx):
         # we're loading all images of a scene?
