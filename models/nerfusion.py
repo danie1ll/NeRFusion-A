@@ -33,10 +33,10 @@ class NeRFusion2(nn.Module):
 
         self.global_representation = global_representation
         if global_representation is not None:
-            self.initialize_global_volume(global_representation)
+            # self.initialize_global_volume(global_representation)
             self.xyz_encoder = \
                 tcnn.Network(
-                    n_input_dims=16, n_output_dims=16,
+                    n_input_dims=24, n_output_dims=16,
                     network_config={
                         "otype": "FullyFusedMLP",
                         "activation": "ReLU",
@@ -91,7 +91,7 @@ class NeRFusion2(nn.Module):
     def density(self, x, return_feat=False):
         """
         Inputs:
-            x: (N, 3) xyz in [-scale, scale]
+            x: (N, 3/features of GRU) xyz in [-scale, scale]
             return_feat: whether to return intermediate feature
 
         Outputs:
@@ -114,13 +114,21 @@ class NeRFusion2(nn.Module):
             rgbs: (N, 3)
         """
         if self.global_representation is not None:
+            print(f'I got here, x is {x.shape}')
             x = self.get_global_feature(x)
+            print(f'After get_global_feature x is {x.shape}')
         sigmas, h = self.density(x, return_feat=True)
         d = d/torch.norm(d, dim=1, keepdim=True)
         d = self.dir_encoder((d+1)/2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
 
         return sigmas, rgbs
+
+    def get_global_feature(self, x):
+        ## TODO(mschneider): extract feature for location in global feature volume
+        print("HERE")
+        print(x)
+        print(x.shape)
 
     @torch.no_grad()
     def get_all_cells(self):

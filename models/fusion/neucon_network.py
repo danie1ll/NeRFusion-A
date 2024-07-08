@@ -169,7 +169,6 @@ class NeuConNet(nn.Module):
             occ = self.occ_preds[i](feat)
 
             # TODO(mschneider): pass GRU features of last scaling pass to NeRF
-            print(feat.shape)
 
             # -------compute loss-------
             if tsdf_target is not None:
@@ -214,6 +213,15 @@ class NeuConNet(nn.Module):
                 outputs['coords'] = pre_coords
                 outputs['tsdf'] = pre_tsdf
                 outputs['feat'] = feat
+                # convert feat tensor to a NumPy array
+                # numpy_array = torch.tensor.numpy()
+                # save the NumPy array to a text file
+                print(f"pre_coords: {pre_coords.shape}")
+                print(f"up_coords: {up_coords.shape}")
+                print(f"feat: {feat.shape}")
+                np.savetxt('pre_coords.txt', pre_coords.cpu())
+                np.savetxt('up_coords.txt', up_coords.cpu())
+                np.savetxt('feat.txt', feat.cpu())
 
         return outputs, loss_dict
 

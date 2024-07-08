@@ -254,6 +254,7 @@ class GRUFusion(nn.Module):
 
             # convert to dense: 1. convert sparse feature to dense feature; 2. combine current feature coordinates and
             # previous feature coordinates within FBV from our backend map to get new feature coordinates (updated_coords)
+            # (mschneider): dense global volume should be passed to NeRF. Dims: [num_voxels, num_voxels, num_voxels, channels]
             updated_coords, current_volume, global_volume, target_volume, valid, valid_target = self.convert2dense(
                 coords_b,
                 values,
@@ -265,6 +266,7 @@ class GRUFusion(nn.Module):
             # dense to sparse: get features using new feature coordinates (updated_coords)
             values = current_volume[updated_coords[:, 0], updated_coords[:, 1], updated_coords[:, 2]]
             global_values = global_volume[updated_coords[:, 0], updated_coords[:, 1], updated_coords[:, 2]]
+
             # get fused gt
             if target_volume is not None:
                 tsdf_target = target_volume[updated_coords[:, 0], updated_coords[:, 1], updated_coords[:, 2]]
@@ -310,4 +312,9 @@ class GRUFusion(nn.Module):
         if self.direct_substitude:
             return outputs
         else:
+            # print(f"updated_coords_all.shape: {updated_coords_all.shape}")
+            # print(f"updated_coords_all: {updated_coords_all}")
+
+            # print(f"values_all.shape: {values_all.shape}")
+            # print(f"values_all: {values_all}")
             return updated_coords_all, values_all, tsdf_target_all, occ_target_all

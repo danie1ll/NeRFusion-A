@@ -72,7 +72,34 @@ class NeRFSystem(LightningModule):
             for p in self.val_lpips.net.parameters():
                 p.requires_grad = False
 
-        self.model = NeRFusion2(scale=self.hparams.scale)
+        # TODO(mschneider): integrate properly
+        # get the desnse global feature volume from sparse feature representation
+        # read the NumPy array from the text file
+        updated_coords_all = torch.tensor(np.loadtxt('up_coords.txt'), dtype=torch.int64, device='cuda:0')
+        values_all = torch.tensor(np.loadtxt('feat.txt'), dtype=torch.int64, device='cuda:0')
+
+        # Create a sparse tensor
+        indices = updated_coords_all.t().to(torch.int64)  # Transpose to match the required shape [4, 281236]
+        values = values_all
+
+        batch_size = updated_coords_all[:, 0].max().item() + 1
+        max_x = 96
+        max_y = 96
+        max_z = 96
+
+        dense_shape = (batch_size, max_x, max_y, max_z, values_all.shape[1])
+
+        # Create the sparse tensor
+        sparse_tensor = torch.sparse_coo_tensor(indices, values, size=dense_shape, device=torch.device('cuda:0'))
+
+        # Convert to dense tensor
+        dense_tensor = sparse_tensor.to_dense()
+
+        # Print the shape of the dense tensor
+        print(dense_tensor.shape)
+        print(dense_tensor)
+
+        self.model = NeRFusion2(scale=self.hparams.scale, global_representation=dense_shape)
 
         # Add a list to store validation images
         self.val_images = []
