@@ -143,3 +143,8 @@ dmypy.json
 /ckpts/
 /checkpoints/
 /wandb/
+
+.vscode
+.feat.txt
+.pre_coords.txt
+.updated_coords.txt
