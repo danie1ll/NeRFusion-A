@@ -145,6 +145,6 @@ dmypy.json
 /wandb/
 
 .vscode
-.feat.txt
-.pre_coords.txt
-.updated_coords.txt
+feat.txt
+pre_coords.txt
+updated_coords.txt
