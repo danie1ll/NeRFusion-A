@@ -45,7 +45,7 @@ class NeRFLoss(nn.Module):
         self.lambda_opacity = lambda_opacity
         self.lambda_distortion = lambda_distortion
 
-        self.rgb_priority = 0.0005662
+        self.depth_weight = 0.0005662
 
     def forward(self, results, target):
         o = results['opacity'] + 1e-10
@@ -56,6 +56,6 @@ class NeRFLoss(nn.Module):
         )
 
         if 'depth' in target:
-            l['depth'] = self.rgb_priority * (results['depth'] - target['depth']) ** 2
+            l['depth'] = self.depth_weight * (results['depth'] - target['depth']) ** 2
 
         return l
