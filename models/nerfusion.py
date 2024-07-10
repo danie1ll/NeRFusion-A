@@ -7,6 +7,7 @@ from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
 from .rendering import NEAR_DISTANCE
 
+
 class NeRFusion2(nn.Module):
     def __init__(self, scale, grid_size=128, global_representation=None):
         super().__init__()
@@ -101,7 +102,7 @@ class NeRFusion2(nn.Module):
         if return_feat: return sigmas, h
         return sigmas
 
-    def forward(self, x, d, **kwargs):
+    def forward(self, x, d):
         """
         Inputs:
             x: (N, 3) xyz in [-scale, scale]
