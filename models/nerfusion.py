@@ -1,13 +1,17 @@
-import torch
-from torch import nn
+import numpy as np
 import tinycudann as tcnn
-
-from models.fusion.neuralrecon import NeuralRecon
-from .custom_functions import TruncExp
+import torch
+import torch.nn.functional as F
 import vren
 from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
+from torch import nn
+
+from models.fusion.neuralrecon import NeuralRecon
+
+from .custom_functions import TruncExp
 from .rendering import NEAR_DISTANCE
+
 
 class NeRFusion2(nn.Module):
     def __init__(self, scale, grid_size=128, global_representation=None, cfg=None):
@@ -30,43 +34,52 @@ class NeRFusion2(nn.Module):
             torch.zeros(self.cascades, self.grid_size**3))
         self.register_buffer('grid_coords',
             create_meshgrid3d(self.grid_size, self.grid_size, self.grid_size, False, dtype=torch.int32).reshape(-1, 3))
+        
+        self.global_feature_volume = torch.nn.Parameter(
+            torch.rand(1, 16, self.grid_size, self.grid_size, self.grid_size)  # Assuming 16 channels for features
+        )
 
-        self.global_representation = global_representation
-        if global_representation is not None:
-            # self.initialize_global_volume(global_representation)
-            self.xyz_encoder = \
-                tcnn.Network(
-                    n_input_dims=24, n_output_dims=16,
-                    network_config={
-                        "otype": "FullyFusedMLP",
-                        "activation": "ReLU",
-                        "output_activation": "None",
-                        "n_neurons": 64,
-                        "n_hidden_layers": 1,
-                    }
-                )
-        else:
-            self.xyz_encoder = \
-                tcnn.NetworkWithInputEncoding(
-                    n_input_dims=3, n_output_dims=16,
-                    encoding_config={
-                        "otype": "Grid",
-                        "type": "Dense",
-                        "n_levels": 3,
-                        "n_feature_per_level": 2,
-                        "base_resolution": 128,
-                        "per_level_scale": 2.0,
-                        "interpolation": "Linear",
-                    },
-                    network_config={
-                        "otype": "FullyFusedMLP",
-                        "activation": "ReLU",
-                        "output_activation": "None",
-                        "n_neurons": 64,
-                        "n_hidden_layers": 1,
-                    }
-                )
+        self.mlp = tcnn.Network(
+            n_input_dims=3,
+            n_output_dims=16,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": 128,
+                "n_hidden_layers": 2,
+            },
+        )
 
+        self.xyz_encoder = \
+            tcnn.NetworkWithInputEncoding(
+                n_input_dims=3, n_output_dims=16,
+                encoding_config={
+                    # "otype": "Grid",
+                    # "type": "Dense",
+                    # "n_levels": 3,
+                    # "n_feature_per_level": 2,
+                    # "base_resolution": 128,
+                    # "per_level_scale": 2.0,
+                    # "interpolation": "Linear",
+                "otype": "Grid",
+                "type": "Dense",
+                "n_levels": 5,
+                "n_feature_per_level": 2,
+                "base_resolution": 32,
+                # "base_resolution": 16,
+                "per_level_scale": 2.0,
+                "interpolation": "Linear",
+                },
+                network_config={
+                    "otype": "FullyFusedMLP",
+                    "activation": "ReLU",
+                    "output_activation": "None",
+                    "n_neurons": 64,
+                    "n_hidden_layers": 1,
+            },
+        )
+        # DIRECTION ENCODER
         self.dir_encoder = \
             tcnn.Encoding(
                 n_input_dims=3,
@@ -75,7 +88,7 @@ class NeRFusion2(nn.Module):
                     "degree": 4,
                 },
             )
-
+        # RGB NET 2D ENCODER
         self.rgb_net = \
             tcnn.Network(
                 n_input_dims=32, n_output_dims=3,
@@ -96,9 +109,11 @@ class NeRFusion2(nn.Module):
 
         Outputs:
             sigmas: (N)
+            h: (N, C) intermediate feature
         """
         x = (x-self.xyz_min)/(self.xyz_max-self.xyz_min)
-        h = self.xyz_encoder(x)
+        h = self.xyz_encoder(x) # (N, 16)
+
         sigmas = TruncExp.apply(h[:, 0])
         if return_feat: return sigmas, h
         return sigmas
@@ -113,10 +128,11 @@ class NeRFusion2(nn.Module):
             sigmas: (N)
             rgbs: (N, 3)
         """
-        if self.global_representation is not None:
-            print(f'I got here, x is {x.shape}')
-            x = self.get_global_feature(x)
-            print(f'After get_global_feature x is {x.shape}')
+
+        # x = self.get_global_feature(x) # (N, 16)
+        # h = self.mlp(x)
+        # sigmas = TruncExp.apply(h[:, 0])
+
         sigmas, h = self.density(x, return_feat=True)
         d = d/torch.norm(d, dim=1, keepdim=True)
         d = self.dir_encoder((d+1)/2)
@@ -124,11 +140,34 @@ class NeRFusion2(nn.Module):
 
         return sigmas, rgbs
 
+
     def get_global_feature(self, x):
-        ## TODO(mschneider): extract feature for location in global feature volume
-        print("HERE")
-        print(x)
-        print(x.shape)
+        """
+        Extracts feature for location in global feature volume.
+
+        Args:
+            x: (N, 3) xyz coordinates in [-scale, scale]
+
+        Returns:
+            features: (N, 16) interpolated feature vectors
+        """
+        # Normalize coordinates to [0, 1] for grid sample
+        x_normalized = (x - self.xyz_min) / (self.xyz_max - self.xyz_min)
+
+        # Prepare the normalized coordinates for grid_sample
+        # Grid sample expects input of shape (N, H, W, D, 3) for 3D grid sampling
+        x_normalized = x_normalized.unsqueeze(0).unsqueeze(-2).unsqueeze(-2)  # Shape: (1, N, 1, 1, 3)
+
+        # Permutation to make it compatible with grid_sample
+        x_normalized = x_normalized.permute(0, 2, 3, 1, 4) # Shape: (1, 1, 1, N, 3)
+
+        # Use grid_sample to interpolate features from global_feature_volume
+        features = F.grid_sample(self.global_feature_volume, x_normalized, mode="nearest", align_corners=True)
+
+        # Reshape the features to (N, 16)
+        features = features.squeeze().t()  # Shape: (N, 16)
+
+        return features
 
     @torch.no_grad()
     def get_all_cells(self):

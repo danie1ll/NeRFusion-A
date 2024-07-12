@@ -87,6 +87,8 @@ class NeRFSystem(LightningModule):
         max_y = 96
         max_z = 96
 
+        self.global_features = values_all
+
         dense_shape = (batch_size, max_x, max_y, max_z, values_all.shape[1])
 
         # Create the sparse tensor
@@ -96,8 +98,8 @@ class NeRFSystem(LightningModule):
         dense_tensor = sparse_tensor.to_dense()
 
         # Print the shape of the dense tensor
-        print(dense_tensor.shape)
-        print(dense_tensor)
+        # print(dense_tensor.shape)
+        # print(dense_tensor)
 
         self.model = NeRFusion2(scale=self.hparams.scale, global_representation=dense_shape)
 

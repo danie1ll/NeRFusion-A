@@ -203,18 +203,18 @@ class ConvGRU(nn.Module):
         self.convq = SConv3d(hidden_dim + input_dim, hidden_dim, pres, vres, 3)
 
     def forward(self, h, x):
-        '''
+        """
 
-        :param h: PintTensor
-        :param x: PintTensor
+        :param h: PointTensor
+        :param x: PointTensor
         :return: h.F: Tensor (N, C)
-        '''
+        """
         hx = PointTensor(torch.cat([h.F, x.F], dim=1), h.C)
 
-        z = torch.sigmoid(self.convz(hx).F)
-        r = torch.sigmoid(self.convr(hx).F)
+        z = torch.sigmoid(self.convz(hx).F)     # M_z
+        r = torch.sigmoid(self.convr(hx).F)     # M_r
         x.F = torch.cat([r * h.F, x.F], dim=1)
-        q = torch.tanh(self.convq(x).F)
+        q = torch.tanh(self.convq(x).F)         # M_t
 
         h.F = (1 - z) * h.F + z * q
         return h.F
