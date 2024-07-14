@@ -35,6 +35,8 @@ class BaseDataset(Dataset):
 
             depths = getattr(object, 'skip_depth_loading', [])
 
+            print('HERE', self.depths)
+
             if not bool(getattr(object, 'skip_depth_loading', False)) and len(depths) > 0:
                 depths = depths[img_idxs, pix_idxs]
 
