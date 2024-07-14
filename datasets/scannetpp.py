@@ -132,7 +132,7 @@ class ScanNetPPDataset(BaseDataset):
             self.depths = []
 
             try:
-                img_path = os.path.join(self.root_dir, f"./dslr/undistorted_images/{frame['file_path']}")
+                img_path = os.path.join(self.root_dir, f"./dslr/render_rgb/{frame['file_path']}")
                 # TODO(mschneider): check if we need a custom read_image to deal with Scannet++ data
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 # contains alpha-blended, unpadded, resized images in dimension ((height * width), channels)
@@ -144,7 +144,8 @@ class ScanNetPPDataset(BaseDataset):
                     depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
                     self.depths += [depth_image]
 
-            except: pass
+            except Exception as e:
+                print(e)
 
         if len(self.rays)>0:
             # ?: depends on whether alpha-values for transparency are given.
