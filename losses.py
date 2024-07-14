@@ -50,7 +50,7 @@ class NeRFLoss(nn.Module):
     def forward(self, results, target):
         o = results['opacity'] + 1e-10
 
-        print('RESULT KEYS', results.keys())
+        print('TARGET KEYS', target.keys())
 
         l = dict(
             rgb=((results['rgb'] - target['rgb']) ** 2),
