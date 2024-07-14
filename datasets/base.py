@@ -33,12 +33,10 @@ class BaseDataset(Dataset):
 
             sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs, 'rgb': rays[:, :3]}
 
-            depths = getattr(object, 'skip_depth_loading', [])
+            print('CONDITION', bool(getattr(object, 'skip_depth_loading', False)))
 
-            print('HERE', self.depths)
-
-            if not bool(getattr(object, 'skip_depth_loading', False)) and len(depths) > 0:
-                depths = depths[img_idxs, pix_idxs]
+            if not bool(getattr(object, 'skip_depth_loading', False)):
+                depths = self.depths[img_idxs, pix_idxs]
 
                 if len(depths) > 0:
                     sample['depth'] = depths
