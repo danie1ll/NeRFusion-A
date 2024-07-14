@@ -16,7 +16,7 @@ def linear_to_srgb(img):
     return img
 
 def read_depth(img_path, img_wh, unpad=0):
-    img = imageio.v2.imread(img_path).astype(np.float32)/255.0
+    img = imageio.v2.imread(img_path).astype(np.float32) / 255.0
 
     if unpad > 0:
         img = img[unpad:-unpad, unpad:-unpad]
