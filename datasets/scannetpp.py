@@ -92,6 +92,7 @@ class ScanNetPPDataset(BaseDataset):
     def read_meta(self, split):
         self.rays = []
         self.poses = []
+        self.depths = []
 
         with open(self.transforms_undistorted_path, 'r') as file:
             transforms_undistorted_data = json.load(file) 
@@ -129,7 +130,6 @@ class ScanNetPPDataset(BaseDataset):
 
             # contains transformation matrices for all frames
             self.poses += [c2w]
-            self.depths = []
 
             try:
                 img_path = os.path.join(self.root_dir, f"./dslr/render_rgb/{frame['file_path']}")
@@ -140,7 +140,7 @@ class ScanNetPPDataset(BaseDataset):
 
                 if not self.skip_depth_loading:
                     name = frame['file_path'].replace('.JPG', '.png')
-                    depth_path = os.path.join(self.depth_path, f"{name}")
+                    depth_path = os.path.join(self.depth_path, name)
                     depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
                     self.depths += [depth_image]
 
