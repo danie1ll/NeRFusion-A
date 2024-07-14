@@ -33,13 +33,13 @@ class BaseDataset(Dataset):
 
             sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs, 'rgb': rays[:, :3]}
 
-            print('CONDITION', bool(getattr(object, 'skip_depth_loading', False)))
-
             if not bool(getattr(object, 'skip_depth_loading', False)):
-                depths = self.depths[img_idxs, pix_idxs]
 
-                if len(depths) > 0:
-                    sample['depth'] = depths
+
+                print('SHAPE', self.depths.shape)
+
+                if len(self.depths) > 0:
+                    sample['depth'] = self.depths[img_idxs, pix_idxs]
 
             if self.rays.shape[-1] == 4: # HDR-NeRF data
                 sample['exposure'] = rays[:, 3:]
