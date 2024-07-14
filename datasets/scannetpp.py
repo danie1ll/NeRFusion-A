@@ -139,8 +139,6 @@ class ScanNetPPDataset(BaseDataset):
                 self.rays += [img]
 
                 if not self.skip_depth_loading:
-
-                    print("LOADING DEPTH")
                     name = frame['file_path'].replace('.JPG', '.png')
                     depth_path = os.path.join(self.depth_path, f"{name}")
                     depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
