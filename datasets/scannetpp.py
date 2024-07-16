@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 
 from .ray_utils import get_ray_directions
-from .color_utils import read_image
+from .color_utils import read_image, read_depth
 
 from .base import BaseDataset
 
@@ -18,11 +18,16 @@ class ScanNetPPDataset(BaseDataset):
     def __init__(self, root_dir, split='train', downsample=1.0, **kwargs):
         super().__init__(root_dir, split, downsample)
         self.transforms_undistorted_path = os.path.join(self.root_dir, "./dslr/nerfstudio/transforms_undistorted.json")
+        self.depth_path = os.path.join(self.root_dir, "dslr/render_depth")
         self.unpad = 24
 
         self.read_intrinsics()
         # self.cam_box contains the two corner points of the rectangular prism that contains all the camera positions
         self.get_cam_bbox()
+
+        print('Depth being loaded:', not kwargs.get('skip_depth_loading', False))
+
+        self.skip_depth_loading = kwargs.get('skip_depth_loading', False)
 
         if kwargs.get('read_meta', True):
             self.read_meta(split)
@@ -87,6 +92,7 @@ class ScanNetPPDataset(BaseDataset):
     def read_meta(self, split):
         self.rays = []
         self.poses = []
+        self.depths = []
 
         with open(self.transforms_undistorted_path, 'r') as file:
             transforms_undistorted_data = json.load(file) 
@@ -126,15 +132,30 @@ class ScanNetPPDataset(BaseDataset):
             self.poses += [c2w]
 
             try:
-                img_path = os.path.join(self.root_dir, f"./dslr/undistorted_images/{frame['file_path']}")
+                img_path = os.path.join(self.root_dir, f"./dslr/render_rgb/{frame['file_path']}")
                 # TODO(mschneider): check if we need a custom read_image to deal with Scannet++ data
                 img = read_image(img_path, self.img_wh, unpad=self.unpad)
                 # contains alpha-blended, unpadded, resized images in dimension ((height * width), channels)
                 self.rays += [img]
-            except: pass
+
+                if not self.skip_depth_loading:
+                    name = frame['file_path'].replace('.JPG', '.png')
+                    depth_path = os.path.join(self.depth_path, name)
+                    depth_image = read_depth(depth_path, self.img_wh, unpad=self.unpad)
+                    self.depths += [depth_image]
+
+            except Exception as e:
+                print('ERROR HERE:', e)
 
         if len(self.rays)>0:
             # ?: depends on whether alpha-values for transparency are given.
             # Either (N_images, h*w, channels) or (N_images, h*w, channels, alpha)
             self.rays = torch.FloatTensor(np.stack(self.rays)) # (N_images, h*w, ?)
+
+
+        if len(self.depths) > 0:
+            self.depths = torch.FloatTensor(np.stack(self.depths))
+
         self.poses = torch.FloatTensor(self.poses) # (N_images, 3, 4)
+
+
