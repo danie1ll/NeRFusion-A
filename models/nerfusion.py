@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 import tinycudann as tcnn
+
+from models.fusion.neuralrecon import NeuralRecon
 from .custom_functions import TruncExp
 import vren
 from einops import rearrange
@@ -9,7 +11,9 @@ from .rendering import NEAR_DISTANCE
 
 
 class NeRFusion2(nn.Module):
-    def __init__(self, scale, grid_size=128, global_representation=None):
+    # (mschneider): vanilla NeRFusion grid_size=128, global feature vectors grid_size = 96
+    # TODO(mschneider): check if adaptation needed in global-feature code
+    def __init__(self, scale, grid_size=128, global_representation=None, cfg=None):
         super().__init__()
 
         # scene bounding box
@@ -32,10 +36,11 @@ class NeRFusion2(nn.Module):
 
         self.global_representation = global_representation
         if global_representation is not None:
-            self.initialize_global_volume(global_representation)
+            # self.initialize_global_volume(global_representation)
+            # pass xyz coords + fatures
             self.xyz_encoder = \
                 tcnn.Network(
-                    n_input_dims=16, n_output_dims=16,
+                    n_input_dims=27, n_output_dims=16,
                     network_config={
                         "otype": "FullyFusedMLP",
                         "activation": "ReLU",
@@ -87,16 +92,20 @@ class NeRFusion2(nn.Module):
                 }
             )
 
-    def density(self, x, return_feat=False):
+    def density(self, x, return_feat=False, normalize=True, global_feature=False):
         """
         Inputs:
-            x: (N, 3) xyz in [-scale, scale]
+            x: (N, 3/features of GRU) xyz in [-scale, scale]
             return_feat: whether to return intermediate feature
 
         Outputs:
             sigmas: (N)
         """
-        x = (x-self.xyz_min)/(self.xyz_max-self.xyz_min)
+        if normalize:
+            x = (x-self.xyz_min)/(self.xyz_max-self.xyz_min)
+        if self.global_representation is not None and not global_feature:
+            scaled_x = self.scale_tensor(x)
+            x = self.get_global_feature(scaled_x)
         h = self.xyz_encoder(x)
         sigmas = TruncExp.apply(h[:, 0])
         if return_feat: return sigmas, h
@@ -112,14 +121,35 @@ class NeRFusion2(nn.Module):
             sigmas: (N)
             rgbs: (N, 3)
         """
+        # excuse the messiness 
+        global_feature = False
+        normalize = True
         if self.global_representation is not None:
-            x = self.get_global_feature(x)
-        sigmas, h = self.density(x, return_feat=True)
+            scaled_x = self.scale_tensor(x, normalize=True)
+            x = self.get_global_feature(scaled_x)
+            # (mschneider): hacky way to let self.density() know that it is being passed a global feature
+            global_feature = True
+            normalize = False
+        sigmas, h = self.density(x, return_feat=True, normalize=normalize, global_feature=global_feature)
         d = d/torch.norm(d, dim=1, keepdim=True)
         d = self.dir_encoder((d+1)/2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
 
         return sigmas, rgbs
+
+    def get_global_feature(self, x):
+        ## TODO(mschneider): extract feature for location in global feature volume
+        # Ensure coordinates are within bounds
+        #max_vals = torch.tensor(self.global_representation.shape[:3]) - 1
+        #coordinates = torch.clamp(x, min=torch.tensor([0,0,0]), max=max_vals)
+        coordinates = x
+
+        # Extract the features
+        N = coordinates.shape[0]
+        features = torch.zeros(N, 24)
+        features = self.global_representation[coordinates[:, 0], coordinates[:, 1], coordinates[:, 2]]
+        result_tensor = torch.cat((coordinates.float(), features), dim=1)
+        return result_tensor
 
     @torch.no_grad()
     def get_all_cells(self):
@@ -237,4 +267,11 @@ class NeRFusion2(nn.Module):
         vren.packbits(self.density_grid, min(mean_density, density_threshold),
                       self.density_bitfield)
 
-
+    def scale_tensor(self, x, normalize=False):
+        if normalize:
+            x = (x-self.xyz_min)/(self.xyz_max-self.xyz_min)
+        x[:, 0] = torch.floor(x[:, 0] * (self.global_representation.shape[0]-1))
+        x[:, 1] = torch.floor(x[:, 1] * (self.global_representation.shape[1]-1))
+        x[:, 2] = torch.floor(x[:, 2] * (self.global_representation.shape[2]-1))
+        x = x.to(torch.long)
+        return x
