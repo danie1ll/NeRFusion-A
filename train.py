@@ -78,28 +78,21 @@ class NeRFSystem(LightningModule):
         updated_coords_all = torch.tensor(np.loadtxt('up_coords.txt'), dtype=torch.int64, device='cuda:0')
         values_all = torch.tensor(np.loadtxt('feat.txt'), dtype=torch.int64, device='cuda:0')
 
+        filtered_coords_zero = updated_coords_all[1:, :]
+
         # Create a sparse tensor
-        indices = updated_coords_all.t().to(torch.int64)  # Transpose to match the required shape [4, 281236]
-        values = values_all
-
-        batch_size = updated_coords_all[:, 0].max().item() + 1
-        max_x = 96
-        max_y = 96
-        max_z = 96
-
-        dense_shape = (batch_size, max_x, max_y, max_z, values_all.shape[1])
+        indices = filtered_coords_zero.t().to(torch.int64)  # Transpose to match the required shape [4, 281236]
+        # need to take only values corresponding to filtered_values_zero
+        values = values_all[:indices.shape[1], :]
 
         # Create the sparse tensor
-        sparse_tensor = torch.sparse_coo_tensor(indices, values, size=dense_shape, device=torch.device('cuda:0'))
+        sparse_tensor = torch.sparse_coo_tensor(indices, values, device=torch.device('cuda:0'))
 
         # Convert to dense tensor
-        dense_tensor = sparse_tensor.to_dense()
+        # remove the first dimension: [1, 96, 96, 76, 24] to [96, 96, 76, 24]
+        dense_tensor = sparse_tensor.to_dense().squeeze(0)
 
-        # Print the shape of the dense tensor
-        print(dense_tensor.shape)
-        print(dense_tensor)
-
-        self.model = NeRFusion2(scale=self.hparams.scale, global_representation=dense_shape)
+        self.model = NeRFusion2(scale=self.hparams.scale, global_representation=dense_tensor)
 
         # Add a list to store validation images
         self.val_images = []

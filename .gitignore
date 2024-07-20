@@ -44,6 +44,11 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# extracted global features
+feat.txt
+pre_coords.txt
+up_coords.txt
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
