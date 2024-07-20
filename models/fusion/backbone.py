@@ -1,3 +1,4 @@
+# adapted from NeuralRecon (https://github.com/zju3dv/NeuralRecon)
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision

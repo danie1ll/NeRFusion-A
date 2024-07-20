@@ -1,3 +1,4 @@
+# adapted from NeuralRecon (https://github.com/zju3dv/NeuralRecon)
 import math
 import torch
 import torch.distributed as dist
