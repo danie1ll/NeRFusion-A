@@ -2,16 +2,18 @@
 import torch
 import torch.nn as nn
 
-from .backbone import MnasMulti
-from .neucon_network import NeuConNet
-from .gru_fusion import GRUFusion
+from models.fusion.transformer_fusion import TransformerFusion
 from utils_fusion import tocuda
+
+from .backbone import MnasMulti
+from .gru_fusion import GRUFusion
+from .neucon_network import NeuConNet
 
 
 class NeuralRecon(nn.Module):
-    '''
+    """
     NeuralRecon main class.
-    '''
+    """
 
     def __init__(self, cfg):
         super(NeuralRecon, self).__init__()
@@ -30,6 +32,9 @@ class NeuralRecon(nn.Module):
         # (mschneider): this GRUFusion layer is not used during training
         self.fuse_to_global = GRUFusion(cfg.MODEL, direct_substitute=True)
 
+        # Use TransformerFusion
+        # self.transformer_fusion = TransformerFusion(cfg.MODEL)
+
 
     def normalizer(self, x):
         """ Normalizes the RGB images to the input range"""
@@ -37,7 +42,7 @@ class NeuralRecon(nn.Module):
 
 
     def forward(self, inputs, save_mesh=False):
-        '''
+        """
 
         :param inputs: dict: {
             'imgs':                    (Tensor), images,
@@ -73,7 +78,7 @@ class NeuralRecon(nn.Module):
             'tsdf_occ_loss_X':         (Tensor), multi level loss
             'total_loss':              (Tensor), total loss
         }
-        '''
+        """
         inputs = tocuda(inputs)
         outputs = {}
         imgs = torch.unbind(inputs['imgs'], 1)
@@ -88,7 +93,11 @@ class NeuralRecon(nn.Module):
 
         # fuse to global volume.
         if not self.training and 'coords' in outputs.keys():
-            outputs = self.fuse_to_global(outputs['coords'], outputs['tsdf'], inputs, self.n_scales, outputs, save_mesh)
+            # outputs = self.fuse_to_global(outputs['coords'], outputs['tsdf'], inputs, self.n_scales, outputs, save_mesh)
+
+            # Use TransformerFusion
+            print('########################################## Using TransformerFusion')
+            outputs = self.transformer_fusion(outputs['coords'], outputs['tsdf'], inputs, self.n_scales, outputs, save_mesh)
 
         # gather loss.
         print_loss = 'Loss: '

@@ -2,7 +2,9 @@
 import torch
 import torch.nn as nn
 from torchsparse.tensor import PointTensor
+
 from utils_fusion import sparse_to_dense_channel, sparse_to_dense_torch
+
 from .modules import ConvGRU
 
 
@@ -50,7 +52,7 @@ class GRUFusion(nn.Module):
 
     def convert2dense(self, current_coords, current_values, coords_target_global, tsdf_target, relative_origin,
                       scale):
-        '''
+        """
         1. convert sparse feature to dense feature;
         2. combine current feature coordinates and previous coordinates within FBV from global hidden state to get
         new feature coordinates (updated_coords);
@@ -68,7 +70,7 @@ class GRUFusion(nn.Module):
         :return: target_volume: (Tensor), dense target tsdf volume, (DIM_X, DIM_Y, DIM_Z, 1)
         :return: valid: mask: 1 represent in current FBV (N,)
         :return: valid_target: gt mask: 1 represent in current FBV (N,)
-        '''
+        """
         # previous frame
         global_coords = self.global_volume[scale].C
         global_value = self.global_volume[scale].F
@@ -121,7 +123,7 @@ class GRUFusion(nn.Module):
 
     def update_map(self, value, coords, target_volume, valid, valid_target,
                    relative_origin, scale):
-        '''
+        """
         Replace Hidden state/tsdf in global Hidden state/tsdf volume by direct substitute corresponding voxels
         :param value: (Tensor) fused feature (N, C)
         :param coords: (Tensor) updated coords (N, 3)
@@ -131,7 +133,7 @@ class GRUFusion(nn.Module):
         :param relative_origin: (Tensor), origin in global volume, (3,)
         :param scale:
         :return:
-        '''
+        """
         # pred
         self.global_volume[scale].F = torch.cat(
             [self.global_volume[scale].F[valid == False], value])
@@ -181,7 +183,7 @@ class GRUFusion(nn.Module):
         return outputs
 
     def forward(self, coords, values_in, inputs, scale=2, outputs=None, save_mesh=False):
-        '''
+        """
         :param coords: (Tensor), coordinates of voxels, (N, 4) (4 : Batch ind, x, y, z)
         :param values_in: (Tensor), features/tsdf, (N, C)
         :param inputs: dict: meta data from dataloader
@@ -204,7 +206,7 @@ class GRUFusion(nn.Module):
         :return: values_all: (Tensor), features after gru fusion, (N', C)
         :return: tsdf_target_all: (Tensor), tsdf ground truth, (N', 1)
         :return: occ_target_all: (Tensor), occupancy ground truth, (N', 1)
-        '''
+        """
         if self.global_volume[scale] is not None:
             # delete computational graph to save memory
             self.global_volume[scale] = self.global_volume[scale].detach()

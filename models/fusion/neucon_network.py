@@ -3,21 +3,23 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsparse.tensor import PointTensor
 from loguru import logger
+from torchsparse.tensor import PointTensor
 
 from models.fusion.modules import SPVCNN
-from utils_fusion import apply_log_transform
-from .gru_fusion import GRUFusion
+from models.fusion.transformer_fusion import TransformerFusion
 from ops.back_project import back_project
 from ops.generate_grids import generate_grid
+from utils_fusion import apply_log_transform
+
+from .gru_fusion import GRUFusion
 
 
 # (mschneider): this is the MLP of NeuralRecon paper!
 class NeuConNet(nn.Module):
-    '''
+    """
     Coarse-to-fine network.
-    '''
+    """
 
     def __init__(self, cfg):
         super(NeuConNet, self).__init__()
@@ -31,6 +33,7 @@ class NeuConNet(nn.Module):
         if self.cfg.FUSION.FUSION_ON:
             # GRU Fusion
             self.gru_fusion = GRUFusion(cfg, channels)
+            self.transformer_fusion = TransformerFusion(cfg)
         # sparse conv
         self.sp_convs = nn.ModuleList()
         # MLPs that predict tsdf and occupancy.
@@ -49,14 +52,14 @@ class NeuConNet(nn.Module):
             self.occ_preds.append(nn.Linear(channels[i], 1))
 
     def get_target(self, coords, inputs, scale):
-        '''
+        """
         Won't be used when 'fusion_on' flag is turned on
         :param coords: (Tensor), coordinates of voxels, (N, 4) (4 : Batch ind, x, y, z)
         :param inputs: (List), inputs['tsdf_list' / 'occ_list']: ground truth volume list, [(B, DIM_X, DIM_Y, DIM_Z)]
         :param scale:
         :return: tsdf_target: (Tensor), tsdf ground truth for each predicted voxels, (N,)
         :return: occ_target: (Tensor), occupancy ground truth for each predicted voxels, (N,)
-        '''
+        """
         with torch.no_grad():
             tsdf_target = inputs['tsdf_list'][scale]
             occ_target = inputs['occ_list'][scale]
@@ -68,7 +71,7 @@ class NeuConNet(nn.Module):
             return tsdf_target, occ_target
 
     def upsample(self, pre_feat, pre_coords, interval, num=8):
-        '''
+        """
 
         :param pre_feat: (Tensor), features from last level, (N, C)
         :param pre_coords: (Tensor), coordinates from last level, (N, 4) (4 : Batch ind, x, y, z)
@@ -76,7 +79,7 @@ class NeuConNet(nn.Module):
         :param num: 1 -> 8
         :return: up_feat : (Tensor), upsampled features, (N*8, C)
         :return: up_coords: (N*8, 4), upsampled coordinates, (4 : Batch ind, x, y, z)
-        '''
+        """
         with torch.no_grad():
             pos_list = [1, 2, 3, [1, 2], [1, 3], [2, 3], [1, 2, 3]]
             n, c = pre_feat.shape
@@ -91,7 +94,7 @@ class NeuConNet(nn.Module):
         return up_feat, up_coords
 
     def forward(self, features, inputs, outputs):
-        '''
+        """
 
         :param features: list: features for each image: eg. list[0] : pyramid features for image0 : [(B, C0, H, W), (B, C1, H/2, W/2), (B, C2, H/2, W/2)]
         :param inputs: meta data from dataloader
@@ -105,7 +108,7 @@ class NeuConNet(nn.Module):
         :return: loss_dict: dict: {
             'tsdf_occ_loss_X':         (Tensor), multi level loss
         }
-        '''
+        """
         bs = features[0][0].shape[0]
         pre_feat = None
         pre_coords = None
@@ -162,7 +165,10 @@ class NeuConNet(nn.Module):
 
             # ----gru fusion----
             if self.cfg.FUSION.FUSION_ON:
-                up_coords, feat, tsdf_target, occ_target = self.gru_fusion(up_coords, feat, inputs, i)
+                # up_coords, feat, tsdf_target, occ_target = self.gru_fusion(up_coords, feat, inputs, i)
+                up_coords, feat, tsdf_target, occ_target = self.transformer_fusion(coords=up_coords, values_in=feat, inputs=inputs)
+                
+
                 if self.cfg.FUSION.FULL:
                     grid_mask = torch.ones_like(feat[:, 0]).bool()
 
@@ -187,7 +193,7 @@ class NeuConNet(nn.Module):
             num = int(occupancy.sum().data.cpu())
 
             if num == 0:
-                logger.warning('no valid points: scale {}'.format(i))
+                logger.warning(f'no valid points: scale {i}')
                 return outputs, loss_dict
 
             # ------avoid out of memory: sample points if num of points is too large-----
@@ -201,7 +207,7 @@ class NeuConNet(nn.Module):
             for b in range(bs):
                 batch_ind = torch.nonzero(pre_coords[:, 0] == b).squeeze(1)
                 if len(batch_ind) == 0:
-                    logger.warning('no valid points: scale {}, batch {}'.format(i, b))
+                    logger.warning(f'no valid points: scale {i}, batch {b}')
                     return outputs, loss_dict
 
             pre_feat = feat[occupancy]
@@ -217,19 +223,19 @@ class NeuConNet(nn.Module):
                 # convert feat tensor to a NumPy array
                 # numpy_array = torch.tensor.numpy()
                 # save the NumPy array to a text file
-                print(f"pre_coords: {pre_coords.shape}")
-                print(f"up_coords: {up_coords.shape}")
-                print(f"feat: {feat.shape}")
-                np.savetxt('pre_coords.txt', pre_coords.cpu())
-                np.savetxt('up_coords.txt', up_coords.cpu())
-                np.savetxt('feat.txt', feat.cpu())
+                # print(f"pre_coords: {pre_coords.shape}")
+                # print(f"up_coords: {up_coords.shape}")
+                # print(f"feat: {feat.shape}")
+                np.savetxt('pre_coords.txt', pre_coords.detach().cpu())
+                np.savetxt("up_coords.txt", up_coords.detach().cpu())
+                np.savetxt("feat.txt", feat.detach().cpu())
 
         return outputs, loss_dict
 
     @staticmethod
     def compute_loss(tsdf, occ, tsdf_target, occ_target, loss_weight=(1, 1),
                      mask=None, pos_weight=1.0):
-        '''
+        """
 
         :param tsdf: (Tensor), predicted tsdf, (N, 1)
         :param occ: (Tensor), predicted occupancy, (N, 1)
@@ -239,7 +245,7 @@ class NeuConNet(nn.Module):
         :param mask: (Tensor), mask voxels which cannot be seen by all views
         :param pos_weight: (float)
         :return: loss: (Tensor)
-        '''
+        """
         # compute occupancy/tsdf loss
         tsdf = tsdf.view(-1)
         occ = occ.view(-1)

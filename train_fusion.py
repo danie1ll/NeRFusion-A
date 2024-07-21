@@ -1,22 +1,22 @@
 import argparse
+import datetime
 import os
 import time
-import datetime
 
 import torch
 import torch.distributed as dist
+from loguru import logger
+from tensorboardX import SummaryWriter
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
-from loguru import logger
 
+from config import cfg, update_config
+from datasets.fusion import find_dataset_def, transforms
 from datasets.fusion.sampler import DistributedSampler
 from datasets.fusion.scannet import ScanNetDataset
-from utils_fusion import tensor2float, save_scalars, DictAverageMeter, SaveScene, make_nograd_func
-from datasets.fusion import transforms, find_dataset_def
 from models.fusion.neuralrecon import NeuralRecon
-from config import cfg, update_config
 from ops.comm import *
+from utils_fusion import DictAverageMeter, SaveScene, make_nograd_func, save_scalars, tensor2float
 
 
 def args():
@@ -61,7 +61,7 @@ update_config(cfg, args)
 
 cfg.defrost()
 num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
-print('number of gpus: {}'.format(num_gpus))
+print(f'number of gpus: {num_gpus}')
 cfg.DISTRIBUTED = num_gpus > 1
 
 if cfg.DISTRIBUTED:
@@ -178,15 +178,15 @@ def train():
             start_epoch = state_dict['epoch'] + 1
     elif cfg.LOADCKPT != '':
         # load checkpoint file specified by args.loadckpt
-        logger.info("loading model {}".format(cfg.LOADCKPT))
+        logger.info(f"loading model {cfg.LOADCKPT}")
         map_location = {'cuda:%d' % 0: 'cuda:%d' % cfg.LOCAL_RANK}
         state_dict = torch.load(cfg.LOADCKPT, map_location=map_location)
         model.load_state_dict(state_dict['model'])
         optimizer.param_groups[0]['initial_lr'] = state_dict['optimizer']['param_groups'][0]['lr']
         optimizer.param_groups[0]['lr'] = state_dict['optimizer']['param_groups'][0]['lr']
         start_epoch = state_dict['epoch'] + 1
-    logger.info("start at epoch {}".format(start_epoch))
-    logger.info('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
+    logger.info(f"start at epoch {start_epoch}")
+    logger.info(f'Number of model parameters: {sum([p.data.nelement() for p in model.parameters()])}')
 
     milestones = [int(epoch_idx) for epoch_idx in cfg.TRAIN.LREPOCHS.split(':')[0].split(',')]
     lr_gamma = 1 / float(cfg.TRAIN.LREPOCHS.split(':')[1])
@@ -194,7 +194,7 @@ def train():
                                                         last_epoch=start_epoch - 1)
 
     for epoch_idx in range(start_epoch, cfg.TRAIN.EPOCHS):
-        logger.info('Epoch {}:'.format(epoch_idx))
+        logger.info(f'Epoch {epoch_idx}:')
         lr_scheduler.step()
         TrainImgLoader.dataset.epoch = epoch_idx
         TrainImgLoader.dataset.tsdf_cashe = {}
@@ -206,10 +206,7 @@ def train():
             loss, scalar_outputs = train_sample(sample)
             if is_main_process():
                 logger.info(
-                    'Epoch {}/{}, Iter {}/{}, train loss = {:.3f}, time = {:.3f}'.format(epoch_idx, cfg.TRAIN.EPOCHS,
-                                                                                         batch_idx,
-                                                                                         len(TrainImgLoader), loss,
-                                                                                         time.time() - start_time))
+                    f'Epoch {epoch_idx}/{cfg.TRAIN.EPOCHS}, Iter {batch_idx}/{len(TrainImgLoader)}, train loss = {loss:.3f}, time = {time.time() - start_time:.3f}')
             if do_summary and is_main_process():
                 save_scalars(tb_writer, 'train', scalar_outputs, global_step)
             del scalar_outputs
@@ -220,7 +217,7 @@ def train():
                 'epoch': epoch_idx,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict()},
-                "{}/model_{:0>6}.ckpt".format(cfg.LOGDIR, epoch_idx))
+                f"{cfg.LOGDIR}/model_{epoch_idx:0>6}.ckpt")
 
 
 def test(from_latest=False):
@@ -253,22 +250,18 @@ def test(from_latest=False):
 
                     start_time = time.time()
                     loss, scalar_outputs, outputs = test_sample(sample, save_scene)
-                    logger.info('Epoch {}, Iter {}/{}, test loss = {:.3f}, time = {:3f}'.format(epoch_idx, batch_idx,
-                                                                                                len(TestImgLoader),
-                                                                                                loss,
-                                                                                                time.time() - start_time))
+                    logger.info(f'Epoch {epoch_idx}, Iter {batch_idx}/{len(TestImgLoader)}, test loss = {loss:.3f}, time = {time.time() - start_time:3f}')
                     avg_test_scalars.update(scalar_outputs)
                     del scalar_outputs
 
                     if batch_idx % 100 == 0:
-                        logger.info("Iter {}/{}, test results = {}".format(batch_idx, len(TestImgLoader),
-                                                                           avg_test_scalars.mean()))
+                        logger.info(f"Iter {batch_idx}/{len(TestImgLoader)}, test results = {avg_test_scalars.mean()}")
 
                     # save mesh
                     if cfg.SAVE_SCENE_MESH:
                         save_mesh_scene(outputs, sample, epoch_idx)
                 save_scalars(tb_writer, 'fulltest', avg_test_scalars.mean(), epoch_idx)
-                logger.info("epoch {} avg_test_scalars:".format(epoch_idx), avg_test_scalars.mean())
+                logger.info(f"epoch {epoch_idx} avg_test_scalars:", avg_test_scalars.mean())
 
                 ckpt_list.append(ckpt)
 
