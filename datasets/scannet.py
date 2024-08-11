@@ -7,14 +7,14 @@ from tqdm import tqdm
 from .ray_utils import get_ray_directions
 from .color_utils import read_image, read_depth
 
-from .base import BaseDataset
+from .base_depth import BaseDatasetDepth
 
 # because of this factor, normalized frames are slightly larger than original bounding box
 # unclear why this is needed
 SCANNET_FAR = 2.0
 
 
-class ScanNetDataset(BaseDataset):
+class ScanNetDataset(BaseDatasetDepth):
     def __init__(self, root_dir, split='train', downsample=1.0, **kwargs):
         super().__init__(root_dir, split, downsample)
 
