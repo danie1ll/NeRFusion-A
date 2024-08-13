@@ -9,6 +9,7 @@ from einops import rearrange
 from kornia.utils.grid import create_meshgrid3d
 from .rendering import NEAR_DISTANCE
 
+
 class NeRFusion2(nn.Module):
     def __init__(self, scale, grid_size=128, global_representation=None, cfg=None):
         super().__init__()
@@ -117,8 +118,9 @@ class NeRFusion2(nn.Module):
             print(f'I got here, x is {x.shape}')
             x = self.get_global_feature(x)
             print(f'After get_global_feature x is {x.shape}')
+
         sigmas, h = self.density(x, return_feat=True)
-        d = d/torch.norm(d, dim=1, keepdim=True)
+        d = d / torch.norm(d, dim=1, keepdim=True)
         d = self.dir_encoder((d+1)/2)
         rgbs = self.rgb_net(torch.cat([d, h], 1))
 

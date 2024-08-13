@@ -80,12 +80,14 @@ class GRUFusion(nn.Module):
         # mask voxels that are out of the FBV
         global_coords = global_coords - relative_origin
         valid = ((global_coords < dim) & (global_coords >= 0)).all(dim=-1)
+
         if self.cfg.FUSION.FULL is False:
             valid_volume = sparse_to_dense_torch(current_coords, 1, dim_list, 0, global_value.device)
             value = valid_volume[global_coords[valid][:, 0], global_coords[valid][:, 1], global_coords[valid][:, 2]]
             all_true = valid[valid]
             all_true[value == 0] = False
             valid[valid] = all_true
+
         # sparse to dense
         global_volume = sparse_to_dense_channel(global_coords[valid], global_value[valid], dim_list, self.ch_in[scale],
                                                 self.feat_init, global_value.device)
@@ -183,7 +185,7 @@ class GRUFusion(nn.Module):
         '''
         :param coords: (Tensor), coordinates of voxels, (N, 4) (4 : Batch ind, x, y, z)
         :param values_in: (Tensor), features/tsdf, (N, C)
-        :param inputs: dict: meta data from dataloader
+        :param inputs: dict: metadata from dataloader
         :param scale:
         :param outputs:
         :param save_mesh: a bool to indicate whether or not to save the reconstructed mesh of current sample
@@ -312,9 +314,4 @@ class GRUFusion(nn.Module):
         if self.direct_substitude:
             return outputs
         else:
-            # print(f"updated_coords_all.shape: {updated_coords_all.shape}")
-            # print(f"updated_coords_all: {updated_coords_all}")
-
-            # print(f"values_all.shape: {values_all.shape}")
-            # print(f"values_all: {values_all}")
             return updated_coords_all, values_all, tsdf_target_all, occ_target_all

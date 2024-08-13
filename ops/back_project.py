@@ -81,4 +81,5 @@ def back_project(coords, origin, voxel_size, feats, KRcam):
         features = torch.cat([features, im_z_norm], dim=1)
 
         feature_volume_all[batch_ind] = features
+
     return feature_volume_all, count

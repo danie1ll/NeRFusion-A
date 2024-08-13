@@ -74,13 +74,14 @@ class NeuConNet(nn.Module):
         :param interval: interval of voxels, interval = scale ** 2
         :param num: 1 -> 8
         :return: up_feat : (Tensor), upsampled features, (N*8, C)
-        :return: up_coords: (N*8, 4), upsampled coordinates, (4 : Batch ind, x, y, z)
+        :return: x: (N*8, 4), upsampled coordinates, (4 : Batch ind, x, y, z)
         '''
         with torch.no_grad():
             pos_list = [1, 2, 3, [1, 2], [1, 3], [2, 3], [1, 2, 3]]
             n, c = pre_feat.shape
             up_feat = pre_feat.unsqueeze(1).expand(-1, num, -1).contiguous()
             up_coords = pre_coords.unsqueeze(1).repeat(1, num, 1).contiguous()
+
             for i in range(num - 1):
                 up_coords[:, i + 1, pos_list[i]] += interval
 
@@ -88,6 +89,8 @@ class NeuConNet(nn.Module):
             up_coords = up_coords.view(-1, 4)
 
         return up_feat, up_coords
+
+    # Goal: FIgure out if the tensor is sparse or not
 
     def forward(self, features, inputs, outputs):
         '''
@@ -114,12 +117,16 @@ class NeuConNet(nn.Module):
             interval = 2 ** (self.n_scales - i)
             scale = self.n_scales - i
 
+            # Only in first iteration
             if i == 0:
                 # ----generate new coords----
                 coords = generate_grid(self.cfg.N_VOX, interval)[0]
                 up_coords = []
+
                 for b in range(bs):
-                    up_coords.append(torch.cat([torch.ones(1, coords.shape[-1]).to(coords.device) * b, coords]))
+                    t = torch.cat([torch.ones(1, coords.shape[-1]).to(coords.device) * b, coords])
+                    up_coords.append(t)
+
                 up_coords = torch.cat(up_coords, dim=1).permute(1, 0).contiguous()
             else:
                 # ----upsample coords----
@@ -129,8 +136,8 @@ class NeuConNet(nn.Module):
             # (mschneider): transforms the 2D features (from images) into a 3D representation
             feats = torch.stack([feat[scale] for feat in features])
             KRcam = inputs['proj_matrices'][:, :, scale].permute(1, 0, 2, 3).contiguous()
-            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats,
-                                         KRcam)
+            volume, count = back_project(up_coords, inputs['vol_origin_partial'], self.cfg.VOXEL_SIZE, feats, KRcam)
+
             grid_mask = count > 1
 
             # ----concat feature from last stage----
@@ -244,6 +251,7 @@ class NeuConNet(nn.Module):
         occ = occ.view(-1)
         tsdf_target = tsdf_target.view(-1)
         occ_target = occ_target.view(-1)
+
         if mask is not None:
             mask = mask.view(-1)
             tsdf = tsdf[mask]
@@ -253,9 +261,11 @@ class NeuConNet(nn.Module):
 
         n_all = occ_target.shape[0]
         n_p = occ_target.sum()
+
         if n_p == 0:
             logger.warning('target: no valid voxel when computing loss')
             return torch.Tensor([0.0]).cuda()[0] * tsdf.sum()
+
         w_for_1 = (n_all - n_p).float() / n_p
         w_for_1 *= pos_weight
 
