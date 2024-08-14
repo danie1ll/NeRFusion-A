@@ -1,8 +1,8 @@
-# Transforming NeRFusion: Fusion, ScanNet++, Depth and Distortion Loss for Superior Volume Reconstruction
+# Transforming NeRF: Fusion, ScanNet++, Depth and Distortion Loss for Large-Scale Scene Reconstruction
 
 ## Introduction
 
-This project extends the NeRFusion framework to work with the new ScanNet++ dataset. Key improvements include the reimplementation of the GRUFusion block, which enhances multi-view information fusion for local volume reconstruction. This allows the system to better synthesize and interpret data from different perspectives. Additionally, depth and distortion loss components have been added during training to optimize learning and improve model accuracy. The fusion process is also visualized by comparing input views with the updated radiance field and extracting the mesh, providing a clear understanding of the process. These enhancements aim to make the NeRFusion framework more robust and versatile, paving the way for advanced 3D reconstruction tasks.
+This project builds on the NeRFusion paper and extends NeRF with a GRUFusion block, depth and distortion loss components, as well as real-time visualizations and training on Scannet++. The GRUFusion block enhances multi-view information fusion for local volume reconstruction. This allows the system to better synthesize and interpret data from different perspectives, leading to faster per-scene optimization and the ability to render large-scale scenes. Additionally, depth and distortion loss components have been added to optimize learning and improve model accuracy. The fusion process is also visualized by comparing input views with the updated radiance field and extracting the mesh, providing a clear understanding of the process. These enhancements aim to make the NeRFusion framework more robust and versatile, paving the way for advanced 3D reconstruction tasks.
 
 This is a re-development of the original NeRFusion code based heavily on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon), [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for sharing their code. 
 
