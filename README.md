@@ -1,61 +1,10 @@
-## Current Development
-
-We are currently working on implementing the following changes:
-
-### Dataset Integration
-- [ScanNet++](https://kaldir.vc.in.tum.de/scannetpp/)
-
-### Architectural Modifications
-- Adding a transformer block to fuse multi-view information in local volume reconstruction
-- Implementing depth loss during training
-- Visualizing the fusion process: input views vs updated radiance field & extract
-the mesh
-
-## Visualize the scene 
-
-Make sure you have the following library installed:
-`conda install -c conda-forge libstdcxx-ng`
-
-Then execute the following command:
-
-`python show_gui.py --dataset_name scannet --root_dir data/scannet_official/scans/scene0000_00 --ckpt_path ckpts/scannet/test_scannet_8frames/epoch=29.ckpt`
-
-
-* w and s can be used to move forward and backward instead of using the mouse scroll.
-* q and e can be used to move up and down, and a and d can be used to move left and right.
-* Use right-click instead of left-click to control rotation.
-
-
-# NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction (CVPR 2022 Oral)
-
-[Project Sites](https://jetd1.github.io/NeRFusion-Web/)
- | [Paper](https://arxiv.org/abs/2203.11283) |
-Primary contact: [Xiaoshuai Zhang](https://jetd1.github.io/NeRFusion-Web/)
-
-## Note
-
-This is a re-development of the original NeRFusion code based heavily on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon), [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for sharing their code. The model released in this repo is optimized for large-scale scenes further compared to the CVPR submission. A changelist will be provided.
-
+# Transforming NeRFusion: Fusion, ScanNet++, Depth and Distortion Loss for Superior Volume Reconstruction
 
 ## Introduction
 
-<img src="./assets/teaser.png" />
+This project extends the NeRFusion framework to work with the new ScanNet++ dataset. Key improvements include the reimplementation of the GRUFusion block, which enhances multi-view information fusion for local volume reconstruction. This allows the system to better synthesize and interpret data from different perspectives. Additionally, depth and distortion loss components have been added during training to optimize learning and improve model accuracy. The fusion process is also visualized by comparing input views with the updated radiance field and extracting the mesh, providing a clear understanding of the process. These enhancements aim to make the NeRFusion framework more robust and versatile, paving the way for advanced 3D reconstruction tasks.
 
-While NeRF has shown great success for neural reconstruction and rendering, its limited MLP capacity and long per-scene optimization times make it challenging to model large-scale indoor scenes. In contrast, classical 3D reconstruction methods can handle large-scale scenes but do not produce realistic renderings. We propose NeRFusion, a method that combines the advantages of NeRF and TSDF-based fusion techniques to achieve efficient large-scale reconstruction and photo-realistic rendering. We process the input image sequence to predict per-frame local radiance fields via direct network inference. These are then fused using a novel recurrent neural network that incrementally reconstructs a global, sparse scene representation in real-time at 22 fps. This volume can be further fine-tuned to boost rendering quality. We demonstrate that NeRFusion achieves state-of-the-art quality on both large-scale indoor and small-scale object scenes, with substantially faster reconstruction speed than NeRF and other recent methods.
-
-<img src="./assets/pipeline.png" />
-
-## Reference
-Please cite our paper if you are interested   
- <strong>NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction</strong>.  &nbsp;&nbsp;&nbsp; 
-```
-@article{zhang2022nerfusion,
-  author    = {Zhang, Xiaoshuai and Bi, Sai and Sunkavalli, Kalyan and Su, Hao and Xu, Zexiang},
-  title     = {NeRFusion: Fusing Radiance Fields for Large-Scale Scene Reconstruction},
-  journal   = {CVPR},
-  year      = {2022},
-}
-```
+This is a re-development of the original NeRFusion code based heavily on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon), [MVSNeRF](https://github.com/apchenstu/mvsnerf). We thank the authors for sharing their code. 
 
 
 ## Installation
@@ -70,7 +19,14 @@ All the codes are tested in the following environment:
 * NVIDIA GPU with Compute Compatibility >= 75 and VRAM >= 6GB, CUDA >= 11.3
 
 ### Dependencies
-* Python>=3.8 (installation via [anaconda](https://www.anaconda.com/distribution/) is recommended, use `conda create -n ngp_pl python=3.8` to create a conda environment and activate it by `conda activate ngp_pl`)
+```shell
+# Ubuntu 18.04 and above is recommended.
+sudo apt install libsparsehash-dev  # you can try to install sparsehash with conda if you don't have sudo privileges.
+conda env create -f environment.yaml
+conda activate nerfusion
+```
+<!-- Follow instructions in [torchsparse](https://github.com/mit-han-lab/torchsparse) to install torchsparse. -->
+
 * Python libraries
     * Install `pytorch>=1.11.0` by `pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu113`
     * Install `torch-scatter` following their [instruction](https://github.com/rusty1s/pytorch_scatter#installation)
@@ -83,6 +39,24 @@ All the codes are tested in the following environment:
 
 ## Data Preparation
 We follow the same data organization as the original NeRF, which expects camera parameters to be provided in a `transforms.json` file. We also support data from NSVF, NeRF++, colmap and ScanNet.
+
+### Pretrained Model on ScanNet
+Download the [pretrained NeuralRecon weights](https://drive.google.com/file/d/1zKuWqm9weHSm98SZKld1PbEddgLOQkQV/view?usp=sharing) and put it under 
+`PROJECT_PATH/checkpoints/release`.
+You can also use [gdown](https://github.com/wkentaro/gdown) to download it in command line:
+```bash
+mkdir checkpoints && cd checkpoints
+gdown --id 1zKuWqm9weHSm98SZKld1PbEddgLOQkQV
+```
+
+### Inference on ScanNet test-set
+```bash
+python train_fusion.py --cfg ./config/test.yaml
+```
+
+The reconstructed meshes will be saved to `PROJECT_PATH/results`.
+
+python train_fusion.py --cfg ./config/test.yaml
 
 ### Custom Sequence
 You can test our pre-trained model on custom sequences captured under casual settings. To do so, the data should be organized in the original NeRF-style:
@@ -123,6 +97,7 @@ Please download and organize the datasets in the following manner:
     ├──DTU/
     ├──google_scanned_objects/
     ├──ScanNet/
+    ├──ScanNetPP/
 ```
 
 For google scanned objects, we used [renderings](https://drive.google.com/file/d/1w1Cs0yztH6kE3JIz7mdggvPGCwIKkVi2/view?usp=sharing) from IBRNet. Download with:
@@ -140,17 +115,16 @@ python train.py --train_root_dir DIR_TO_DATA --exp_name EXP_NAME
 
 See `opt.py` for more options.
 
+## Visualize the scene 
 
-## Performance
+Make sure you have the following library installed:
+`conda install -c conda-forge libstdcxx-ng`
 
-We applied optimization on large-scale scenes in this code base, and the performance may not exactly match all numbers in the paper. Our test results with this code base is reported here. For generalized no per-scene optimization setting, we achieve 23.35/0.844/0.333 on ScanNet eight scenes, 26.23/0.925/0.169 on DTU, and 24.21/0.888/0.129 on NeRF Synthetic. For per-scene optimization setting, we achieve 27.78/0.917/0.199 on ScanNet eight scenes, 31.76/0.961/0.118 on DTU, and 29.88/0.949/0.099 on NeRF Synthetic.
+Then execute the following command:
+
+`python show_gui.py --dataset_name scannet --root_dir data/scannet_official/scans/scene0000_00 --ckpt_path ckpts/scannet/test_scannet_8frames/epoch=29.ckpt`
 
 
-## Acknowledgement
-Our repo is developed based on [nerf_pl](https://github.com/kwea123/nerf_pl), [NeuralRecon](https://github.com/zju3dv/NeuralRecon) and [MVSNeRF](https://github.com/apchenstu/mvsnerf). Please also consider citing the corresponding papers. 
-
-The project is conducted collaboratively between Adobe Research and University of California, San Diego. 
-
-## LICENSE
-
-The code is released under MIT License.
+* w and s can be used to move forward and backward instead of using the mouse scroll.
+* q and e can be used to move up and down, and a and d can be used to move left and right.
+* Use right-click instead of left-click to control rotation.
