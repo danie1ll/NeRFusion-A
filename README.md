@@ -49,17 +49,9 @@ mkdir checkpoints && cd checkpoints
 gdown --id 1zKuWqm9weHSm98SZKld1PbEddgLOQkQV
 ```
 
-### Inference on ScanNet test-set
-```bash
-python train_fusion.py --cfg ./config/test.yaml
-```
+### Training 
 
-The reconstructed meshes will be saved to `PROJECT_PATH/results`.
-
-python train_fusion.py --cfg ./config/test.yaml
-
-### Custom Sequence
-You can test our pre-trained model on custom sequences captured under casual settings. To do so, the data should be organized in the original NeRF-style:
+To run training on a given dataset, the data should be organized in the original NeRF-style:
 
 ```
 data
@@ -70,24 +62,13 @@ data
     ├── ...
 ```
 
-If a video is all you have (no camera parameters). You should install `ffmpeg` and `colmap`. Then follow the instructions as introduced in [instant-ngp](https://github.com/NVlabs/instant-ngp/blob/master/scripts/colmap2nerf.py) to generate the `transformas.json`.
-
-## Inference using Trained Network
-```bash
-python inference.py --root_dir data/scans/scene0000_00/ --ckpt_path ckpts/scannet/test_scannet/epoch\=29.ckpt --dataset_name scannet
-```
-Please find the pre-trained weights for networks [here](https://drive.google.com/file/d/1YjwO1Q2CAn7tdnwVzDgL_iEH_m7cSiHW/view?usp=sharing).
-
 ### Per-Scene Optimization
-Note: currently this script trains model from scratch. We are updating generalized pipeline.
+The following script trains models from scratch and automatically uploads metrics and artifacts to Weights & Biases.
+
 ```bash
 python train.py --dataset_name DATASET_NAME --root_dir DIR_TO_SCANNET_SCENE --exp_name EXP_NAME
 ```
 
-You can test using our [sample data](https://drive.google.com/file/d/1vy5whVQbMcyKTK5W0LJsTlDgCS7wGih7/view?usp=sharing) on ScanNet. You can also try evaluation using our [sample checkpoint](https://drive.google.com/file/d/1wHSPMSGhy1TVSWCYttz2JDNUTMTeI9w0/view?usp=sharing) on ScanNet:
-```bash
-python train.py --dataset_name scannet --root_dir DIR_TO_SCANNET_SCENE0000_01 --exp_name EXP_NAME --val_only --ckpt_path PATH_TO_SCANNET_SCENE0000_01_CKPT
-```
 
 ## Training Procedure
 
@@ -115,7 +96,40 @@ python train.py --train_root_dir DIR_TO_DATA --exp_name EXP_NAME
 
 See `opt.py` for more options.
 
-## Visualize the scene 
+
+# How to run our contributions for the ML for 3D project
+
+## Inference using Fusion
+
+The following command will generate and extract the global feature volumes created by the GRUFusion module, leveraging the pre-trained weights of NeuralRecon.
+
+```bash
+python train_fusion.py --cfg ./config/test.yaml
+```
+
+Once the global feature volume is available, you can run fusion based scene-reconstruction on any scannet scene by including the 
+--use_gru_fusion flag.
+
+## Inference using Depth Loss
+
+Depth loss is added by default, but can be deactivated using --skip_depth_loading.
+
+## Inference using Distortion Loss
+
+Use flag --distortion_loss_w and specify the weight (0 by defautl). Good values are 1e-3 for real scene and 1e-2 for synthetic scene.
+
+## Inference on Scannet++
+
+Follow the procedures outlines above. Specify the dataset name as 
+--dataset_name scannetpp. Note that training is done on DSLR images that first need to be undistorted using the scannetpp-toolkit.
+
+## Using Weights & Biases Sweep agents
+
+All experiments are automatically tracked in Weights and Biases. To deactivate this use the --debug flag.
+
+Use flag --use_sweep to leverage wandb sweep agents for hyperparameter tuning (default: False).
+
+## Real-time visualization of model checkpoints / learned scenes
 
 Make sure you have the following library installed:
 `conda install -c conda-forge libstdcxx-ng`
