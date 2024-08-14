@@ -1,0 +1,24 @@
+program: train.py 
+method: bayes
+metric:
+  name: test/psnr
+  goal: maximize
+parameters:
+  lr:
+    distribution: uniform
+    min: 0.00001
+    max: 0.01
+  batch_size:
+    values: [4096, 8192, 16384]
+  num_epochs:
+    values: [20, 30, 40]
+project: NeRFusion
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --dataset_name=scannetpp
+  - --use_sweep
+  - --root_dir=data/ScanNetPP/data/56a0ec536c/
+  - --skip_depth_loading

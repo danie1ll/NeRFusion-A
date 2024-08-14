@@ -1,0 +1,33 @@
+program: train.py
+method: bayes
+metric:
+  name: test/psnr
+  goal: maximize
+parameters:
+  # lr:
+  #   distribution: uniform
+  #   min: 0.0001
+  #   max: 0.001
+  batch_size:
+    values: [8192]
+  num_epochs:
+    values: [15, 20, 30]
+  # distortion_loss_w:
+    # distribution: uniform
+    # min: 0.001
+    # max: 0.01
+    #depth_loss_w:
+    #distribution: uniform
+    #min: 0.0001
+    #max: 0.01
+project: NeRFusion
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args}
+  - --distortion_loss_w=1.0
+  - --depth_loss_w=0.00019
+  - --dataset_name=scannet
+  - --use_sweep
+  - --root_dir=data/scene0000_00

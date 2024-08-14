@@ -25,6 +25,11 @@ def get_opts():
                         0 to disable (default), to enable,
                         a good value is 1e-3 for real scene and 1e-2 for synthetic scene
                         ''')
+    parser.add_argument('--depth_loss_w', type=float, default=0,
+                        help='''weight of distortion loss (see losses.py),
+                        0 to disable (default), to enable,
+                        a good value is TBD for real scene and TBD for synthetic scene
+                        ''')
 
     # training options
     parser.add_argument('--batch_size', type=int, default=8192,
@@ -43,7 +48,7 @@ def get_opts():
                         help='number of training epochs')
     parser.add_argument('--num_gpus', type=int, default=1,
                         help='number of gpus')
-    parser.add_argument('--lr', type=float, default=1e-2,
+    parser.add_argument('--lr', type=float, default=1e-3,
                         help='learning rate')
     # experimental training options
     parser.add_argument('--optimize_ext', action='store_true', default=False,

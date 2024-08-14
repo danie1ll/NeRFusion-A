@@ -44,6 +44,7 @@ from utils import slim_ckpt, load_ckpt
 
 import warnings; warnings.filterwarnings("ignore")
 
+torch.set_float32_matmul_precision('high')  
 
 def depth2img(depth):
     depth = (depth-depth.min())/(depth.max()-depth.min())
@@ -63,7 +64,7 @@ class NeRFSystem(LightningModule):
 
         self.skip_depth_loading = hparams.skip_depth_loading
 
-        self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w)
+        self.loss = NeRFLoss(lambda_distortion=self.hparams.distortion_loss_w, depth_loss_w=hparams.depth_loss_w)
         self.train_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_psnr = PeakSignalNoiseRatio(data_range=1)
         self.val_ssim = StructuralSimilarityIndexMeasure(data_range=1)
@@ -210,9 +211,11 @@ class NeRFSystem(LightningModule):
         self.log('train/loss', loss)
 
         if 'depth' in loss_d:
-            self.log('train/loss/depth', loss_d['depth'].mean(), True)
+            self.log('train/depth_loss', loss_d['depth'].mean(), True)
 
-        self.log('train/loss/rgb', loss_d['rgb'].mean(), True)
+        self.log('train/rgb_loss', loss_d['rgb'].mean(), True)
+
+        self.log('train/distortion_loss', loss_d['distortion'].mean(), True)
 
         # ray marching samples per ray (occupied space on the ray)
         self.log('train/rm_s', results['rm_samples']/len(batch['rgb']), True)
@@ -325,7 +328,7 @@ if __name__ == '__main__':
         wandb.login(host="https://api.wandb.ai", key=WANDB_API_KEY)
 
         # Initialize wandb logger
-        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=True)
+        logger = WandbLogger(project="Nerfusion", name=hparams.exp_name, log_model=False)
     else:
         # Use TensorBoardLogger as default
         logger = TensorBoardLogger("tb_logs", name=hparams.exp_name)

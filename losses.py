@@ -39,23 +39,29 @@ class DistortionLoss(torch.autograd.Function):
 
 
 class NeRFLoss(nn.Module):
-    def __init__(self, lambda_opacity=1e-3, lambda_distortion=1e-3):
+    def __init__(self, lambda_opacity=1e-3, lambda_distortion=1e-3, depth_loss_w=0):
         super().__init__()
 
         self.lambda_opacity = lambda_opacity
         self.lambda_distortion = lambda_distortion
-
-        self.depth_weight = 0.0005662
+        self.depth_loss_w = depth_loss_w
+        self.distortion_loss = DistortionLoss.apply
 
     def forward(self, results, target):
-        o = results['opacity'] + 1e-10
+        # Add small epsilon to avoid log(0) when opacity is 0
+        opacity = results['opacity'] + 1e-10
 
-        l = dict(
-            rgb=((results['rgb'] - target['rgb']) ** 2),
-            opacity=self.lambda_opacity * (-o * torch.log(o))
+        loss_dict = dict(
+            rgb=(results['rgb'] - target['rgb']) ** 2,
+            opacity=self.lambda_opacity * (-opacity * torch.log(opacity))
         )
 
         if 'depth' in target:
-            l['depth'] = self.depth_weight * (results['depth'] - target['depth']) ** 2
+            loss_dict['depth'] = self.depth_loss_w * (results['depth'] - target['depth']) ** 2
 
-        return l
+        # Add distortion loss
+        if all(k in results for k in ['ws', 'deltas', 'ts', 'rays_a']):
+            distortion = self.distortion_loss(results['ws'], results['deltas'], results['ts'], results['rays_a'])
+            loss_dict['distortion'] = self.lambda_distortion * distortion
+
+        return loss_dict
