@@ -73,7 +73,32 @@ class NeRFSystem(LightningModule):
             for p in self.val_lpips.net.parameters():
                 p.requires_grad = False
 
-        self.model = NeRFusion2(scale=self.hparams.scale)
+        # TODO(mschneider): integrate properly
+        # get the desnse global feature volume from sparse feature representation
+        # read the NumPy array from the text file
+        if hparams.use_gru_fusion:
+            print("USING GRU FUSION")
+            updated_coords_all = torch.tensor(np.loadtxt('up_coords.txt'), dtype=torch.int64, device='cuda:0')
+            values_all = torch.tensor(np.loadtxt('feat.txt'), dtype=torch.int64, device='cuda:0')
+
+            filtered_coords_zero = updated_coords_all[1:, :]
+
+            # Create a sparse tensor
+            indices = filtered_coords_zero.t().to(torch.int64)  # Transpose to match the required shape [4, 281236]
+            # need to take only values corresponding to filtered_values_zero
+            values = values_all[:indices.shape[1], :]
+
+            # Create the sparse tensor
+            sparse_tensor = torch.sparse_coo_tensor(indices, values, device=torch.device('cuda:0'))
+
+            # Convert to dense tensor
+            # remove the first dimension: [1, 96, 96, 76, 24] to [96, 96, 76, 24]
+            dense_tensor = sparse_tensor.to_dense().squeeze(0)
+
+            self.model = NeRFusion2(scale=self.hparams.scale, global_representation=dense_tensor)
+        else:
+            print("NOT USING GRU FUSION")
+            self.model = NeRFusion2(scale=self.hparams.scale)
 
         # Add a list to store validation images
         self.val_images = []

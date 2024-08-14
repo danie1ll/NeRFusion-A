@@ -83,9 +83,13 @@ def get_opts():
                         Makes no sense for random non-sequential images from ScanNet
                         ''')
     
+    # WANDB
     parser.add_argument('--debug', action='store_true', default=False,
                         help='if debug is enabled, wandb is not used for logging (default: False)')
     parser.add_argument('--use_sweep', action='store_true', default=False,
                         help='use wandb sweep agents for hyperparameter tuning (default: False)')
 
+    # GRU fusion
+    parser.add_argument('--use_gru_fusion', action='store_true', default=False,
+                    help='use GRU-fusion to get global feature representations for Scannet (default: False)')
     return parser.parse_args()

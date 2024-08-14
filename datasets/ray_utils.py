@@ -8,8 +8,7 @@ from einops import rearrange
 def get_ray_directions(H, W, K, device='cpu', random=False, return_uv=False, flatten=True):
     """
     Get ray directions for all pixels in camera coordinate [right down front].
-    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/
-               ray-tracing-generating-camera-rays/standard-coordinate-systems
+    Reference: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/standard-coordinate-systems
 
     Inputs:
         H, W: image height and width

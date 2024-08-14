@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import numpy as np
 
 
-class BaseDataset(Dataset):
+class BaseDatasetDepth(Dataset):
     """
     Define length and sampling method
     """
@@ -26,11 +26,17 @@ class BaseDataset(Dataset):
                 img_idxs = np.random.choice(len(self.poses), self.batch_size)
             elif self.ray_sampling_strategy == 'same_image': # randomly select ONE image
                 img_idxs = np.random.choice(len(self.poses), 1)[0]
+
             # randomly select pixels
             pix_idxs = np.random.choice(self.img_wh[0]*self.img_wh[1], self.batch_size)
             rays = self.rays[img_idxs, pix_idxs]
-            sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs,
-                      'rgb': rays[:, :3]}
+
+            sample = {'img_idxs': img_idxs, 'pix_idxs': pix_idxs, 'rgb': rays[:, :3]}
+
+            if not bool(getattr(object, 'skip_depth_loading', False)):
+                if len(self.depths) > 0:
+                    sample['depth'] = self.depths[img_idxs, pix_idxs]
+
             if self.rays.shape[-1] == 4: # HDR-NeRF data
                 sample['exposure'] = rays[:, 3:]
         else:
