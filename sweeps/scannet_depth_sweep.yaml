@@ -9,23 +9,24 @@ parameters:
   #   min: 0.0001
   #   max: 0.001
   batch_size:
-    values: [4096, 8192, 16384]
+    values: [8192, 16384]
   num_epochs:
-    values: [10, 15, 20]
+    values: [40,50,60]
   # distortion_loss_w:
     # distribution: uniform
     # min: 0.001
     # max: 0.01
-  depth_loss_w:
-    distribution: uniform
-    min: 0.0001
-    max: 0.01
+    #  depth_loss_w:
+    #distribution: uniform
+    #min: 0.0001
+    #max: 0.01
 project: NeRFusion
 command:
   - ${env}
   - ${interpreter}
   - ${program}
   - ${args}
+  - --depth_loss_w=0.00019
   - --dataset_name=scannet
   - --use_sweep
   - --root_dir=data/scene0000_00
